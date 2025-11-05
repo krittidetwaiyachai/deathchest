@@ -1,0 +1,19 @@
+# ... (ของเดิม) ...
+
+settings:
+  despawn-timer: 300
+  currency-name: "coins"
+  buyback-cost: 1000
+  hologram-lines:
+    - "&c&lกล่องศพของ %player%"
+    - "&eเหลือเวลาอีก %time% วินาที"
+
+# --- เพิ่มส่วนนี้เข้าไป ---
+logging:
+  file:
+    enable: true
+    log-name: "DeathChestGUI.log"
+  discord:
+    enable: false
+    webhook-url: "YOUR_WEBHOOK_URL_HERE"
+    username: "DeathChest Logger"
