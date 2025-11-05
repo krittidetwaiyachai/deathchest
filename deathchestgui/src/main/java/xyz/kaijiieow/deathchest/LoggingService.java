@@ -201,7 +201,7 @@ public class LoggingService {
                     + "\"title\":\"" + escape(title) + "\","
                     + "\"description\":\"" + description + "\","
                     + "\"color\":" + level.getDiscordColor() + ","
-                    + "footer\":{\"text\":\"" + escape(plugin.getName()) + " • MyServer SMP\"},"
+                    + "\"footer\":{\"text\":\"" + escape(plugin.getName()) + " • BBMC •\"},"
                     + "\"timestamp\":\"" + Instant.now().toString() + "\""
                 + "}]"
             + "}";
