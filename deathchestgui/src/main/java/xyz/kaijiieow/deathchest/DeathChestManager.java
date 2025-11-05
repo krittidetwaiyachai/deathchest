@@ -12,6 +12,7 @@ import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
+import xyz.kaijiieow.deathchest.LoggingService.LogLevel;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -151,7 +152,8 @@ public class DeathChestManager {
 
                 if (timeLeft <= 0) {
                     this.cancel();
-                    logger.log(LoggingService.LogLevel.INFO, "กล่องศพของ " + data.ownerName + " หมดเวลา (ย้ายไป buyback)");
+                    // [EDIT] เปลี่ยน log ธรรมดาไปเรียกใน removeChest
+                    // logger.log(LoggingService.LogLevel.INFO, "กล่องศพของ " + data.ownerName + " หมดเวลา (ย้ายไป buyback)");
                     removeChest(loc, data, true); 
                     return;
                 }
@@ -189,12 +191,20 @@ public class DeathChestManager {
             DeathDataPackage dataPackage = new DeathDataPackage(data.items, data.experience);
             storageManager.addLostItems(data.ownerUUID, dataPackage);
             
+            // [NEW] Log to Discord
+            logger.logChestExpired(data.ownerName, data.locationString, data.experience);
+
             Player owner = Bukkit.getPlayer(data.ownerUUID);
             if (owner != null && owner.isOnline()) {
                 owner.sendMessage(configManager.getChatMessageExpired().replace("&", "§"));
             }
+        } else if (moveToBuyback) {
+            // [NEW] Case: Chest expired but was empty
+            logger.log(LogLevel.INFO, "ลบกล่องศพหมดอายุ (แต่ว่างเปล่า) ของ: " + data.ownerName);
         } else {
-            logger.log(LoggingService.LogLevel.INFO, "ลบกล่องศพของ " + data.ownerName + " (ถูกเก็บ/เคลียร์/ว่างเปล่า)");
+            // [NEW] Case: Chest was collected (moveToBuyback = false)
+            // Logging for this is handled by ChestInteractListener.
+            // We don't log anything here to avoid duplicates.
         }
     }
 

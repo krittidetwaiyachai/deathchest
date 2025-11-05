@@ -119,6 +119,10 @@ public class ChestInteractListener implements Listener {
                 @Override
                 public void run() {
                     // (ต้องรัน task ถัดไป ไม่งั้นมันพยายามลบกล่องขณะที่ยัง "ปิด" ไม่เสร็จ)
+                    
+                    // [NEW] Log to Discord
+                    plugin.getLoggingService().logChestCollected(data.ownerName, data.locationString);
+                    
                     deathChestManager.removeChest(loc, data, false); 
                 }
             }.runTask(plugin);

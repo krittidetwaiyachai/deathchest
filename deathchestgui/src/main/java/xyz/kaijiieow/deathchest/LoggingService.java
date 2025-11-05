@@ -108,6 +108,46 @@ public class LoggingService {
         }
     }
 
+    // [NEW] Added this method
+    public void logChestExpired(String playerName, String locationStr, int experience) {
+        String msg = String.format(
+            "กล่องศพของ %s ที่ %s หมดเวลา (XP: %d) - ย้ายไป /buyback",
+            playerName, locationStr, experience
+        );
+        log(LogLevel.WARN, msg); // ใช้ WARN เพราะเป็นสีเหลือง
+
+        if (configManager.isDiscordLoggingEnabled()) {
+            sendRichDiscordWebhook(
+                LogLevel.WARN, // สีเหลือง
+                "⌛ กล่องหมดเวลา",
+                playerName,
+                locationStr,
+                experience,
+                "กล่องศพหมดเวลา ของถูกย้ายไปที่ /buyback เรียบร้อย"
+            );
+        }
+    }
+
+    // [NEW] Added this method
+    public void logChestCollected(String playerName, String locationStr) {
+        String msg = String.format(
+            "%s เก็บของจากกล่องศพที่ %s จนหมด กล่องถูกลบ",
+            playerName, locationStr
+        );
+        log(LogLevel.INFO, msg);
+
+        if (configManager.isDiscordLoggingEnabled()) {
+            sendRichDiscordWebhook(
+                LogLevel.INFO, // สีเขียว
+                "✅ กล่องถูกเก็บ",
+                playerName,
+                locationStr,
+                0, // XP ถูกเก็บไปก่อนหน้านี้แล้ว
+                "ผู้เล่นเก็บของจากกล่องศพจนหมด กล่องถูกลบออกจากพื้นที่"
+            );
+        }
+    }
+
     // ===================== Discord Helpers =====================
 
     private String levelEmoji(LogLevel level) {
@@ -161,7 +201,7 @@ public class LoggingService {
                     + "\"title\":\"" + escape(title) + "\","
                     + "\"description\":\"" + description + "\","
                     + "\"color\":" + level.getDiscordColor() + ","
-                    + "\"footer\":{\"text\":\"" + escape(plugin.getName()) + " • " + escape(Bukkit.getServer().getName()) + "\"},"
+                    + "footer\":{\"text\":\"" + escape(plugin.getName()) + " • MyServer SMP\"},"
                     + "\"timestamp\":\"" + Instant.now().toString() + "\""
                 + "}]"
             + "}";
