@@ -10,7 +10,6 @@ import org.bukkit.inventory.meta.ItemMeta;
 import java.util.Arrays;
 import java.util.List;
 
-// จัดการ GUI ซื้อคืน
 public class GuiManager {
 
     private final DeathChestPlugin plugin;
@@ -44,7 +43,7 @@ public class GuiManager {
         int cost = configManager.getBuybackCost();
         
         for (ItemStack[] itemSet : playerLostItems) {
-            if (slot >= 54) break; // กัน GUI ล้น
+            if (slot >= 54) break;
 
             ItemStack guiItem = new ItemStack(Material.CHEST);
             ItemMeta meta = guiItem.getItemMeta();
@@ -77,12 +76,10 @@ public class GuiManager {
             return;
         }
 
-        // --- ตรวจสอบเงิน (จริง) ---
         int cost = configManager.getBuybackCost();
         double balance = hookManager.getBalance(player);
         
         if (balance >= cost) {
-            // ดึงของออกจาก Storage ก่อน
             ItemStack[] itemsToGive = storageManager.removeLostItems(player.getUniqueId(), slot);
             
             if (itemsToGive == null) {
@@ -92,10 +89,8 @@ public class GuiManager {
                  return;
             }
             
-            // --- หักเงิน (จริง) ---
             hookManager.withdrawMoney(player, cost);
             
-            // คืนของ
             for (ItemStack item : itemsToGive) {
                 if(item != null) {
                     player.getInventory().addItem(item);

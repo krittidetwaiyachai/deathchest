@@ -5,7 +5,6 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-// จัดการคำสั่ง /buyback
 public class BuybackCommand implements CommandExecutor {
 
     private final GuiManager guiManager;

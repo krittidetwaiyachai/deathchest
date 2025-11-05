@@ -8,11 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-// จัดการคลังของที่รอซื้อคืน
 public class StorageManager {
 
-    // !! สำคัญ: ยังเป็น HashMap ชั่วคราว (ของหายเมื่อรีเซิร์ฟ) !!
-    // !! อนาคตควรเปลี่ยนส่วนนี้เป็น SQL !!
     private final Map<UUID, List<ItemStack[]>> lostItemsStorage = new HashMap<>();
 
     public List<ItemStack[]> getLostItems(UUID playerId) {

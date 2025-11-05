@@ -7,7 +7,6 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 
-// Listener สำหรับ GUI
 public class GuiListener implements Listener {
 
     private final GuiManager guiManager;

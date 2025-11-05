@@ -1,15 +1,13 @@
 package xyz.kaijiieow.deathchest;
 
-// import eu.decentsoftware.holograms.api.DHAPI;
-// import eu.decentsoftware.holograms.api.holograms.Hologram;
-import eu.decentsoftware.holograms.shared.DecentHologramsException;
-import eu.decentsoftware.holograms.api.DHAPI;
-import eu.decentsoftware.holograms.api.holograms.Hologram;
 import org.bukkit.Bukkit;
+import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Chest;
+import org.bukkit.entity.Display;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -21,21 +19,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-// จัดการ Logic การตาย, สร้างกล่อง, จับเวลา
 public class DeathChestManager {
 
     private final DeathChestPlugin plugin;
     private final ConfigManager configManager;
-    private final HookManager hookManager;
     private final StorageManager storageManager;
     private final LoggingService logger;
 
     private final Map<Location, DeathChestData> activeChests = new HashMap<>();
 
-    public DeathChestManager(DeathChestPlugin plugin, ConfigManager configManager, HookManager hookManager, StorageManager storageManager, LoggingService logger) {
+    public DeathChestManager(DeathChestPlugin plugin, ConfigManager configManager, StorageManager storageManager, LoggingService logger) {
         this.plugin = plugin;
         this.configManager = configManager;
-        this.hookManager = hookManager;
         this.storageManager = storageManager;
         this.logger = logger;
     }
@@ -44,7 +39,6 @@ public class DeathChestManager {
         Player player = event.getEntity();
         Location deathLoc = player.getLocation();
 
-        // (ควรเพิ่ม Logic หาที่ปลอดภัยวางกล่อง)
         if (deathLoc.getBlock().getType() != Material.AIR && deathLoc.getBlock().getType().isOccluding()) {
              deathLoc.setY(deathLoc.getY() + 1);
         }
@@ -52,7 +46,6 @@ public class DeathChestManager {
         deathLoc.getBlock().setType(Material.CHEST);
         Chest chest = (Chest) deathLoc.getBlock().getState();
 
-        // ย้ายของ
         List<ItemStack> allItems = new ArrayList<>(event.getDrops());
         allItems.addAll(Arrays.asList(player.getInventory().getArmorContents()));
         
@@ -64,10 +57,16 @@ public class DeathChestManager {
         
         event.getDrops().clear();
 
-        // สร้าง Hologram
-        String hologramName = "DeathChest-" + player.getUniqueId() + "-" + System.currentTimeMillis();
-        Location hologramLoc = deathLoc.clone().add(0.5, 2.0, 0.5);
-        Hologram hologram = DHAPI.createHologram(hologramName, hologramLoc);
+        Location hologramLoc = deathLoc.clone().add(0.5, 1.5, 0.5);
+        
+        TextDisplay hologram = player.getWorld().spawn(hologramLoc, TextDisplay.class, (holo) -> {
+            holo.setGravity(false);
+            holo.setPersistent(false);
+            holo.setInvulnerable(true);
+            holo.setBrightness(new Display.Brightness(15, 15));
+            holo.setBackgroundColor(Color.fromARGB(0, 0, 0, 0)); // แก้แล้ว
+            holo.setAlignment(TextDisplay.Alignment.CENTER); // แก้แล้ว
+        });
         
         DeathChestData data = new DeathChestData(player.getUniqueId(), player.getName(), chest, hologram, allItems.toArray(new ItemStack[0]));
         activeChests.put(deathLoc, data);
@@ -84,22 +83,29 @@ public class DeathChestManager {
 
             @Override
             public void run() {
-                if (!activeChests.containsKey(loc) || timeLeft <= 0) {
+                if (!activeChests.containsKey(loc) || data.hologramEntity == null || !data.hologramEntity.isValid()) {
                     this.cancel();
                     if (activeChests.containsKey(loc)) {
-                        logger.log(LoggingService.LogLevel.INFO, "กล่องศพของ " + data.ownerName + " หมดเวลา (ย้ายไป buyback)");
-                        removeChest(loc, data, true); // true = ย้ายไปที่คลังซื้อคืน
+                        logger.log(LoggingService.LogLevel.INFO, "โฮโลแกรมของ " + data.ownerName + " หาย! (อาจโดน /kill) ทำการลบกล่อง...");
+                        removeChest(loc, data, true);
                     }
                     return;
                 }
 
-                // อัปเดต Hologram
-                List<String> lines = configManager.getHologramLines().stream()
+                if (timeLeft <= 0) {
+                    this.cancel();
+                    logger.log(LoggingService.LogLevel.INFO, "กล่องศพของ " + data.ownerName + " หมดเวลา (ย้ายไป buyback)");
+                    removeChest(loc, data, true); 
+                    return;
+                }
+
+                String text = configManager.getHologramLines().stream()
                         .map(line -> line.replace("&", "§")
                                 .replace("%player%", data.ownerName)
                                 .replace("%time%", String.valueOf(timeLeft)))
-                        .collect(Collectors.toList());
-                DHAPI.updateHologram(data.hologram.getName(), lines);
+                        .collect(Collectors.joining("\n"));
+                
+                data.hologramEntity.setText(text);
 
                 timeLeft--;
             }
@@ -107,8 +113,8 @@ public class DeathChestManager {
     }
 
     public void removeChest(Location loc, DeathChestData data, boolean moveToBuyback) {
-        if (data.hologram != null) {
-            data.hologram.delete();
+        if (data.hologramEntity != null && data.hologramEntity.isValid()) {
+            data.hologramEntity.remove();
         }
 
         if (loc.getBlock().getType() == Material.CHEST) {
@@ -127,6 +133,16 @@ public class DeathChestManager {
             }
         } else {
             logger.log(LoggingService.LogLevel.INFO, "ลบกล่องศพของ " + data.ownerName + " (ถูกเก็บ/เคลียร์)");
+        }
+    }
+
+    public void cleanupAllChests() {
+        if (activeChests.isEmpty()) {
+            return;
+        }
+        logger.log(LoggingService.LogLevel.WARN, "กำลังล้างกล่องศพที่ค้างอยู่ " + activeChests.size() + " กล่อง (ก่อนปิดเซิร์ฟ)...");
+        for (Map.Entry<Location, DeathChestData> entry : new ArrayList<>(activeChests.entrySet())) {
+            removeChest(entry.getKey(), entry.getValue(), false);
         }
     }
 }

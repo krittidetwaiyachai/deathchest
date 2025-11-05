@@ -18,9 +18,9 @@ public class LoggingService {
     private Logger fileLogger;
 
     public enum LogLevel {
-        INFO(Level.INFO, 65280), // Green
-        WARN(Level.WARNING, 16776960), // Yellow
-        ERROR(Level.SEVERE, 16711680); // Red
+        INFO(Level.INFO, 65280),
+        WARN(Level.WARNING, 16776960),
+        ERROR(Level.SEVERE, 16711680);
 
         private final Level javaLevel;
         private final int discordColor;
@@ -51,22 +51,19 @@ public class LoggingService {
             fh.setFormatter(new SimpleFormatter());
             fileLogger.addHandler(fh);
             fileLogger.setLevel(Level.INFO);
-            fileLogger.setUseParentHandlers(false); // ไม่ต้องซ้ำกับ console
+            fileLogger.setUseParentHandlers(false);
         } catch (Exception e) {
             plugin.getLogger().severe("ไม่สามารถสร้าง File logger ได้: " + e.getMessage());
         }
     }
 
     public void log(LogLevel level, String message) {
-        // 1. Log to Console (เสมอ)
         plugin.getLogger().log(level.getJavaLevel(), message);
 
-        // 2. Log to File
         if (configManager.isFileLoggingEnabled() && fileLogger != null) {
             fileLogger.log(level.getJavaLevel(), message);
         }
 
-        // 3. Log to Discord (Async)
         if (configManager.isDiscordLoggingEnabled()) {
             sendDiscordWebhook(level, message);
         }
@@ -87,12 +84,11 @@ public class LoggingService {
                 con.setRequestProperty("User-Agent", "Mozilla/5.0");
                 con.setDoOutput(true);
 
-                // สร้าง JSON Payload
                 String jsonPayload = String.format(
                     "{\"username\": \"%s\", \"embeds\": [{\"title\": \"[%s]\", \"description\": \"%s\", \"color\": %d}]}",
                     configManager.getDiscordUsername(),
                     level.name(),
-                    message.replace("\"", "\\\""), // Escape quotes
+                    message.replace("\"", "\\\""),
                     level.getDiscordColor()
                 );
 
@@ -101,13 +97,11 @@ public class LoggingService {
                     os.write(input, 0, input.length);
                 }
 
-                // ส่ง Request
                 con.getResponseCode();
                 con.disconnect();
 
             } catch (Exception e) {
-                // ไม่ต้อง spam console ถ้ายิง webhook ไม่ผ่าน
-                // plugin.getLogger().warning("ยิง Discord webhook ไม่สำเร็จ: " + e.getMessage());
+                // ไม่ต้อง spam console
             }
         });
     }

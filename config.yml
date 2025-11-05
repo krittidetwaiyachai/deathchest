@@ -1,5 +1,3 @@
-# ... (ของเดิม) ...
-
 settings:
   despawn-timer: 300
   currency-name: "coins"
@@ -8,7 +6,6 @@ settings:
     - "&c&lกล่องศพของ %player%"
     - "&eเหลือเวลาอีก %time% วินาที"
 
-# --- เพิ่มส่วนนี้เข้าไป ---
 logging:
   file:
     enable: true
