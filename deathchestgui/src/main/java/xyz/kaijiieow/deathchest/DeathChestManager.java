@@ -35,9 +35,43 @@ public class DeathChestManager {
         this.logger = logger;
     }
 
+    public DeathChestData getActiveChestAt(Location loc) {
+        return activeChests.get(loc);
+    }
+
     public void createDeathChest(PlayerDeathEvent event) {
         Player player = event.getEntity();
         Location deathLoc = player.getLocation();
+
+        int totalExp = player.getTotalExperience();
+
+        List<ItemStack> allItems = new ArrayList<>(event.getDrops());
+        allItems.addAll(Arrays.asList(player.getInventory().getArmorContents()));
+        allItems.add(player.getInventory().getItemInOffHand());
+        
+        List<ItemStack> validItems = new ArrayList<>();
+        for (ItemStack item : allItems) {
+            if (item != null && item.getType() != Material.AIR) {
+                validItems.add(item);
+            }
+        }
+
+        if (totalExp == 0 && validItems.isEmpty()) {
+            event.setDroppedExp(0);
+            event.getDrops().clear();
+            player.setTotalExperience(0);
+            player.setLevel(0);
+            player.setExp(0);
+            player.getInventory().clear(); 
+            
+            logger.log(LoggingService.LogLevel.INFO, "ผู้เล่น " + player.getName() + " ตายแบบตัวเปล่า ไม่สร้างกล่องศพ");
+            return;
+        }
+
+        event.setDroppedExp(0);
+        player.setTotalExperience(0);
+        player.setLevel(0);
+        player.setExp(0);
 
         if (deathLoc.getBlock().getType() != Material.AIR && deathLoc.getBlock().getType().isOccluding()) {
              deathLoc.setY(deathLoc.getY() + 1);
@@ -46,35 +80,42 @@ public class DeathChestManager {
         deathLoc.getBlock().setType(Material.CHEST);
         Chest chest = (Chest) deathLoc.getBlock().getState();
 
-        List<ItemStack> allItems = new ArrayList<>(event.getDrops());
-        allItems.addAll(Arrays.asList(player.getInventory().getArmorContents()));
-        
-        for (ItemStack item : allItems) {
-            if (item != null && item.getType() != Material.AIR) {
-                chest.getBlockInventory().addItem(item);
-            }
-        }
-        
         event.getDrops().clear();
+        player.getInventory().clear();
 
-        Location hologramLoc = deathLoc.clone().add(0.5, 1.5, 0.5);
+        Location hologramLoc = deathLoc.clone().add(0.5, configManager.getHologramYOffset(), 0.5);
+        String locationStr = String.format("%d, %d, %d", deathLoc.getBlockX(), deathLoc.getBlockY(), deathLoc.getBlockZ());
         
         TextDisplay hologram = player.getWorld().spawn(hologramLoc, TextDisplay.class, (holo) -> {
             holo.setGravity(false);
             holo.setPersistent(false);
             holo.setInvulnerable(true);
             holo.setBrightness(new Display.Brightness(15, 15));
-            holo.setBackgroundColor(Color.fromARGB(0, 0, 0, 0)); // แก้แล้ว
-            holo.setAlignment(TextDisplay.Alignment.CENTER); // แก้แล้ว
+            holo.setBackgroundColor(Color.fromARGB(0, 0, 0, 0));
+            holo.setAlignment(TextDisplay.TextAlignment.CENTER);
+            holo.setBillboard(Display.Billboard.CENTER);
         });
         
-        DeathChestData data = new DeathChestData(player.getUniqueId(), player.getName(), chest, hologram, allItems.toArray(new ItemStack[0]));
+        DeathChestData data = new DeathChestData(
+            player.getUniqueId(), 
+            player.getName(), 
+            chest, 
+            hologram, 
+            validItems.toArray(new ItemStack[0]),
+            totalExp,
+            locationStr
+        );
+
         activeChests.put(deathLoc, data);
         startDespawnTimer(deathLoc, data);
 
-        String locationStr = deathLoc.getBlockX() + ", " + deathLoc.getBlockY() + ", " + deathLoc.getBlockZ();
-        player.sendMessage("§cคุณตาย! ของของคุณอยู่ในกล่องที่ตำแหน่ง: " + locationStr);
-        logger.log(LoggingService.LogLevel.INFO, "สร้างกล่องศพให้ " + player.getName() + " ที่ " + locationStr);
+        player.sendMessage(configManager.getChatMessageDeath()
+            .replace("&", "§")
+            .replace("%coords%", locationStr)
+            .replace("%xp%", String.valueOf(totalExp))
+        );
+        
+        logger.logDeath(player, locationStr, totalExp);
     }
 
     private void startDespawnTimer(Location loc, DeathChestData data) {
@@ -86,7 +127,7 @@ public class DeathChestManager {
                 if (!activeChests.containsKey(loc) || data.hologramEntity == null || !data.hologramEntity.isValid()) {
                     this.cancel();
                     if (activeChests.containsKey(loc)) {
-                        logger.log(LoggingService.LogLevel.INFO, "โฮโลแกรมของ " + data.ownerName + " หาย! (อาจโดน /kill) ทำการลบกล่อง...");
+                        logger.log(LoggingService.LogLevel.WARN, "โฮโลแกรมของ " + data.ownerName + " หาย! (อาจโดน /kill) ทำการลบกล่อง...");
                         removeChest(loc, data, true);
                     }
                     return;
@@ -102,7 +143,10 @@ public class DeathChestManager {
                 String text = configManager.getHologramLines().stream()
                         .map(line -> line.replace("&", "§")
                                 .replace("%player%", data.ownerName)
-                                .replace("%time%", String.valueOf(timeLeft)))
+                                .replace("%time%", String.valueOf(timeLeft))
+                                .replace("%xp%", String.valueOf(data.experience))
+                                .replace("%coords%", data.locationString)
+                        )
                         .collect(Collectors.joining("\n"));
                 
                 data.hologramEntity.setText(text);
@@ -124,15 +168,16 @@ public class DeathChestManager {
         
         activeChests.remove(loc);
 
-        if (moveToBuyback) {
-            storageManager.addLostItems(data.ownerUUID, data.items);
+        if (moveToBuyback && (data.items.length > 0 || data.experience > 0)) {
+            DeathDataPackage dataPackage = new DeathDataPackage(data.items, data.experience);
+            storageManager.addLostItems(data.ownerUUID, dataPackage);
             
             Player owner = Bukkit.getPlayer(data.ownerUUID);
             if (owner != null && owner.isOnline()) {
-                owner.sendMessage("§cกล่องเก็บของของคุณหมดเวลา! §eคุณสามารถซื้อคืนได้ด้วยคำสั่ง §f/buyback");
+                owner.sendMessage(configManager.getChatMessageExpired().replace("&", "§"));
             }
         } else {
-            logger.log(LoggingService.LogLevel.INFO, "ลบกล่องศพของ " + data.ownerName + " (ถูกเก็บ/เคลียร์)");
+            logger.log(LoggingService.LogLevel.INFO, "ลบกล่องศพของ " + data.ownerName + " (ถูกเก็บ/เคลียร์/ว่างเปล่า)");
         }
     }
 

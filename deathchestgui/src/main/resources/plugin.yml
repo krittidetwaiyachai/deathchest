@@ -1,0 +1,9 @@
+name: DeathChestGUI
+version: 1.0
+main: xyz.kaijiieow.deathchest.DeathChestPlugin
+api-version: 1.21
+depend: [CoinsEngine]
+commands:
+  buyback:
+    description: เปิด GUI เพื่อซื้อของที่หายคืน
+    usage: /buyback

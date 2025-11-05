@@ -17,7 +17,7 @@ public class GuiListener implements Listener {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        if (!event.getView().getTitle().equals(GuiManager.GUI_TITLE)) {
+        if (!event.getView().getTitle().startsWith(GuiManager.GUI_TITLE_PREFIX)) {
             return;
         }
 
@@ -25,11 +25,11 @@ public class GuiListener implements Listener {
         Player player = (Player) event.getWhoClicked();
         ItemStack clickedItem = event.getCurrentItem();
 
-        if (clickedItem == null || clickedItem.getType() != Material.CHEST) {
+        if (clickedItem == null || clickedItem.getType() == Material.AIR) {
             return;
         }
 
         int slot = event.getSlot();
-        guiManager.handleGuiClick(player, slot);
+        guiManager.handleGuiClick(player, slot, clickedItem);
     }
 }

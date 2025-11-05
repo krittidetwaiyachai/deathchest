@@ -32,6 +32,8 @@ public class DeathChestPlugin extends JavaPlugin {
 
         getServer().getPluginManager().registerEvents(new DeathListener(deathChestManager), this);
         getServer().getPluginManager().registerEvents(new GuiListener(guiManager), this);
+        getServer().getPluginManager().registerEvents(new ChestInteractListener(this, deathChestManager, configManager), this);
+        
         getCommand("buyback").setExecutor(new BuybackCommand(guiManager));
 
         loggingService.log(LoggingService.LogLevel.INFO, "DeathChestGUI (Refactored) เปิดใช้งานแล้ว! (โหมดโฮโลแกรมทำเอง)");

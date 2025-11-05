@@ -1,6 +1,7 @@
 package xyz.kaijiieow.deathchest;
 
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -65,11 +66,44 @@ public class LoggingService {
         }
 
         if (configManager.isDiscordLoggingEnabled()) {
-            sendDiscordWebhook(level, message);
+            sendSimpleDiscordWebhook(level, message);
         }
     }
 
-    private void sendDiscordWebhook(LogLevel level, String message) {
+    public void logDeath(Player player, String locationStr, int totalExp) {
+        String msg = "สร้างกล่องศพให้ " + player.getName() + " ที่ " + locationStr + " (XP: " + totalExp + ")";
+        
+        log(LogLevel.INFO, msg); 
+        
+        if (configManager.isDiscordLoggingEnabled()) {
+            sendRichDiscordWebhook(
+                LogLevel.INFO, 
+                "สร้างกล่องศพ", 
+                player.getName(), 
+                locationStr, 
+                totalExp
+            );
+        }
+    }
+
+    public void logBuyback(Player player, int setIndex, int cost, String currency, int experience) {
+        String msg = String.format("%s ซื้อของคืน (Set %d) ราคา %d %s (ได้ XP: %d)",
+            player.getName(), setIndex, cost, currency, experience);
+        
+        log(LogLevel.INFO, msg);
+
+        if (configManager.isDiscordLoggingEnabled()) {
+            sendRichDiscordWebhook(
+                LogLevel.INFO,
+                "ซื้อของคืน",
+                player.getName(),
+                String.format("Set %d (ราคา %d %s)", setIndex, cost, currency),
+                experience
+            );
+        }
+    }
+
+    private void sendSimpleDiscordWebhook(LogLevel level, String message) {
         String webhookUrl = configManager.getDiscordWebhookUrl();
         if (webhookUrl == null || webhookUrl.isEmpty() || webhookUrl.equals("YOUR_WEBHOOK_URL_HERE")) {
             return;
@@ -77,8 +111,7 @@ public class LoggingService {
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
-                URL url = new URL(webhookUrl);
-                HttpURLConnection con = (HttpURLConnection) url.openConnection();
+                HttpURLConnection con = (HttpURLConnection) new URL(webhookUrl).openConnection();
                 con.setRequestMethod("POST");
                 con.setRequestProperty("Content-Type", "application/json");
                 con.setRequestProperty("User-Agent", "Mozilla/5.0");
@@ -96,13 +129,47 @@ public class LoggingService {
                     byte[] input = jsonPayload.getBytes(StandardCharsets.UTF_8);
                     os.write(input, 0, input.length);
                 }
-
                 con.getResponseCode();
                 con.disconnect();
+            } catch (Exception e) { /* ไม่ต้อง spam console */ }
+        });
+    }
 
-            } catch (Exception e) {
-                // ไม่ต้อง spam console
-            }
+    private void sendRichDiscordWebhook(LogLevel level, String title, String playerName, String location, Integer xp) {
+         String webhookUrl = configManager.getDiscordWebhookUrl();
+        if (webhookUrl == null || webhookUrl.isEmpty() || webhookUrl.equals("YOUR_WEBHOOK_URL_HERE")) {
+            return;
+        }
+
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            try {
+                HttpURLConnection con = (HttpURLConnection) new URL(webhookUrl).openConnection();
+                con.setRequestMethod("POST");
+                con.setRequestProperty("Content-Type", "application/json");
+                con.setRequestProperty("User-Agent", "Mozilla/5.0");
+                con.setDoOutput(true);
+
+                String jsonPayload = String.format(
+                    "{\"username\": \"%s\", \"embeds\": [{\"title\": \"%s\", \"color\": %d, \"fields\": [" +
+                    "{\"name\": \"Player\", \"value\": \"%s\", \"inline\": true}," +
+                    "{\"name\": \"Location/Set\", \"value\": \"%s\", \"inline\": true}," +
+                    "{\"name\": \"Experience\", \"value\": \"%d\", \"inline\": true}" +
+                    "]}]}",
+                    configManager.getDiscordUsername(),
+                    title,
+                    level.getDiscordColor(),
+                    playerName,
+                    location,
+                    xp
+                );
+
+                try (OutputStream os = con.getOutputStream()) {
+                    byte[] input = jsonPayload.getBytes(StandardCharsets.UTF_8);
+                    os.write(input, 0, input.length);
+                }
+                con.getResponseCode();
+                con.disconnect();
+            } catch (Exception e) { /* ไม่ต้อง spam console */ }
         });
     }
 

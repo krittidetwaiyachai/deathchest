@@ -10,19 +10,19 @@ import java.util.UUID;
 
 public class StorageManager {
 
-    private final Map<UUID, List<ItemStack[]>> lostItemsStorage = new HashMap<>();
+    private final Map<UUID, List<DeathDataPackage>> lostItemsStorage = new HashMap<>();
 
-    public List<ItemStack[]> getLostItems(UUID playerId) {
+    public List<DeathDataPackage> getLostItems(UUID playerId) {
         return lostItemsStorage.get(playerId);
     }
 
-    public void addLostItems(UUID playerId, ItemStack[] items) {
+    public void addLostItems(UUID playerId, DeathDataPackage dataPackage) {
         lostItemsStorage.putIfAbsent(playerId, new ArrayList<>());
-        lostItemsStorage.get(playerId).add(items);
+        lostItemsStorage.get(playerId).add(dataPackage);
     }
 
-    public ItemStack[] removeLostItems(UUID playerId, int index) {
-        List<ItemStack[]> playerItems = getLostItems(playerId);
+    public DeathDataPackage removeLostItems(UUID playerId, int index) {
+        List<DeathDataPackage> playerItems = getLostItems(playerId);
         if (playerItems == null || index < 0 || index >= playerItems.size()) {
             return null;
         }
@@ -30,7 +30,7 @@ public class StorageManager {
     }
 
     public boolean hasLostItems(UUID playerId) {
-        List<ItemStack[]> playerItems = getLostItems(playerId);
+        List<DeathDataPackage> playerItems = getLostItems(playerId);
         return playerItems != null && !playerItems.isEmpty();
     }
 }

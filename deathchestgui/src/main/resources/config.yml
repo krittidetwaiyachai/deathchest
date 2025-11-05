@@ -1,0 +1,26 @@
+settings:
+  despawn-timer: 20
+  currency-name: "coins"
+  buyback-cost: 1
+  allow-other-players-to-open: false # (ถ้า true = ใครก็เปิดได้, ถ้า false = เจ้าของเท่านั้น)
+  hologram-y-offset: 1.5
+  hologram-lines:
+    - "&c&lกล่องศพของ %player%"
+    - "&eพิกัด: &f%coords%"
+    - "&bXP ที่เสียไป: &f%xp%"
+    - "&eเหลือเวลาอีก %time% วินาที"
+
+messages:
+  death: "§cคุณตาย! ของของคุณอยู่ในกล่องที่ตำแหน่ง: §f%coords% §c(XP: §f%xp%§c)"
+  expired: "§cกล่องเก็บของของคุณหมดเวลา! §eคุณสามารถซื้อคืนได้ด้วยคำสั่ง §f/buyback"
+  not_your_chest: "§cนี่ไม่ใช่กล่องศพของคุณ!"
+  xp_restored: "§aคุณได้รับ XP คืน: %xp%"
+
+logging:
+  file:
+    enable: true
+    log-name: "DeathChestGUI.log"
+  discord:
+    enable: false
+    webhook-url: "YOUR_WEBHOOK_URL_HERE"
+    username: "DeathChest Logger"
