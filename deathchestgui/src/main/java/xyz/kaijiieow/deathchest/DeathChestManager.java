@@ -104,7 +104,6 @@ public class DeathChestManager {
             holo.setPersistent(false);
             holo.setInvulnerable(true);
             holo.setBrightness(new Display.Brightness(15, 15));
-            holo.setBackgroundColor(Color.fromARGB(0, 0, 0, 0));
             holo.setAlignment(TextDisplay.TextAlignment.CENTER); // [FIX] มึงใช้ TextAlignment.CENTER มาตลอด มันผิด
             holo.setBillboard(Display.Billboard.CENTER);
         });

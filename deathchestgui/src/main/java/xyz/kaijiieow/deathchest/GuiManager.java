@@ -66,7 +66,7 @@ public class GuiManager {
         Inventory gui = Bukkit.createInventory(null, 54, guiTitle);
 
         int currencyCost = configManager.getBuybackCost();
-        String currencyName = configManager.getCurrencyName();
+        String currencyName = hookManager.getActiveCurrencyName();
 
         int startIndex = page * ITEMS_PER_PAGE;
         int endIndex = Math.min(startIndex + ITEMS_PER_PAGE, totalItems);
@@ -158,12 +158,12 @@ public class GuiManager {
             player.giveExp(dataToGive.getExperience()); 
             
             player.sendMessage("§aซื้อของคืนสำเร็จ! (ได้รับ XP: " + dataToGive.getExperience() + ")");
-            logger.logBuyback(player, index + 1, cost, configManager.getCurrencyName(), dataToGive.getExperience());
+            logger.logBuyback(player, index + 1, cost, hookManager.getActiveCurrencyName(), dataToGive.getExperience());
             
             player.closeInventory();
             
         } else {
-            player.sendMessage("§cคุณมีเงินไม่พอ! (" + configManager.getCurrencyName() + " ไม่พอ)");
+            player.sendMessage("§cคุณมีเงินไม่พอ! (" + hookManager.getActiveCurrencyName() + " ไม่พอ)");
             logger.log(LoggingService.LogLevel.WARN, player.getName() + " พยายามซื้อของคืนแต่เงินไม่พอ (มี " + balance + " ต้องการ " + cost + ")");
             player.closeInventory();
         }

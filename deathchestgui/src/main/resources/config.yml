@@ -1,6 +1,8 @@
 settings:
   despawn-timer: 20
-  currency-name: "coins"
+  economy-provider: "VAULT"
+  # 'currency-name' จะถูกใช้เมื่อ 'economy-provider' เป็น "COINS_ENGINE" เท่านั้น
+  # currency-name: "coins"
   buyback-cost: 1
   allow-other-players-to-open: false # (ถ้า true = ใครก็เปิดได้, ถ้า false = เจ้าของเท่านั้น)
   hologram-y-offset: 1.5

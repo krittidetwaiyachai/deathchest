@@ -20,7 +20,7 @@ public class DeathChestPlugin extends JavaPlugin {
 
         this.hookManager = new HookManager(this, configManager, loggingService);
         if (!hookManager.setupEconomy()) {
-            loggingService.log(LoggingService.LogLevel.ERROR, "!!! ปลั๊กอินไม่สามารถทำงานได้ ขาด CoinsEngine !!!");
+            loggingService.log(LoggingService.LogLevel.ERROR, "!!! ไม่สามารถเชื่อมต่อกับระบบเศรษฐกิจ (Vault หรือ CoinsEngine) ได้ ปลั๊กอินจะปิดตัวลง !!!");
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
@@ -34,12 +34,10 @@ public class DeathChestPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new DeathListener(deathChestManager), this);
         getServer().getPluginManager().registerEvents(new GuiListener(guiManager), this);
         getServer().getPluginManager().registerEvents(new ChestInteractListener(this, deathChestManager, configManager), this);
-        // [FIX] มึงลืมลงทะเบียนตัวกันระเบิด
         getServer().getPluginManager().registerEvents(new ChestProtectionListener(deathChestManager), this); 
         
         // --- ลงทะเบียน Commands ---
         getCommand("buyback").setExecutor(new BuybackCommand(guiManager));
-        // [FIX] มึงลืมลงทะเบียนคำสั่งนี้!!
         getCommand("tpchest").setExecutor(new TeleportChestCommand(deathChestManager, configManager)); 
 
         loggingService.log(LoggingService.LogLevel.INFO, "DeathChestGUI (Refactored) เปิดใช้งานแล้ว!");

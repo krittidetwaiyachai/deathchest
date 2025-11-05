@@ -8,11 +8,12 @@ public class ConfigManager {
 
     private final DeathChestPlugin plugin;
     private int despawnTime;
+    private String economyProvider; // [NEW]
     private String currencyName;
     private int buybackCost;
     private boolean allowOtherPlayersToOpen;
     private double hologramYOffset;
-    private int tpChestCooldown; // [NEW]
+    private int tpChestCooldown; 
     private List<String> hologramLines;
 
     private String chatMessageDeath;
@@ -22,7 +23,7 @@ public class ConfigManager {
     private String chatMessageNoPermission;
     private String chatMessageNoChestFound;
     private String chatMessageTeleported;
-    private String chatMessageTeleportCooldown; // [NEW]
+    private String chatMessageTeleportCooldown; 
 
     private boolean fileLoggingEnabled;
     private String logFileName;
@@ -39,12 +40,15 @@ public class ConfigManager {
 
     private void loadConfigValues() {
         FileConfiguration config = plugin.getConfig();
+
+        this.economyProvider = config.getString("settings.economy-provider", "COINS_ENGINE").toUpperCase();
+        
         this.despawnTime = config.getInt("settings.despawn-timer", 300);
         this.currencyName = config.getString("settings.currency-name", "coins");
         this.buybackCost = config.getInt("settings.buyback-cost", 1000);
         this.allowOtherPlayersToOpen = config.getBoolean("settings.allow-other-players-to-open", false);
         this.hologramYOffset = config.getDouble("settings.hologram-y-offset", 1.2);
-        this.tpChestCooldown = config.getInt("settings.teleport-command-cooldown", 30); // [NEW]
+        this.tpChestCooldown = config.getInt("settings.teleport-command-cooldown", 30); 
         this.hologramLines = config.getStringList("settings.hologram-lines");
 
         this.chatMessageDeath = config.getString("messages.death", "§cคุณตาย! ของของคุณอยู่ในกล่องที่ตำแหน่ง: §f%coords% §c(XP: §f%xp%§c)");
@@ -54,7 +58,7 @@ public class ConfigManager {
         this.chatMessageNoPermission = config.getString("messages.no_permission", "§cคุณไม่มียศพอที่จะใช้คำสั่งนี้!");
         this.chatMessageNoChestFound = config.getString("messages.no_chest_found", "§cไม่พบกล่องศพของคุณ");
         this.chatMessageTeleported = config.getString("messages.teleported", "§aวาร์ปไปยังกล่องศพของคุณ!");
-        this.chatMessageTeleportCooldown = config.getString("messages.teleport-cooldown", "§cใจเย็น! ต้องรออีก %time% วินาทีก่อนจะวาร์ปได้"); // [NEW]
+        this.chatMessageTeleportCooldown = config.getString("messages.teleport-cooldown", "§cใจเย็น! ต้องรออีก %time% วินาทีก่อนจะวาร์ปได้"); 
 
         this.fileLoggingEnabled = config.getBoolean("logging.file.enable", true);
         this.logFileName = config.getString("logging.file.log-name", "DeathChestGUI.log");
@@ -63,12 +67,14 @@ public class ConfigManager {
         this.discordUsername = config.getString("logging.discord.username", "DeathChest Logger");
     }
 
+    public String getEconomyProvider() { return economyProvider; }
+
     public int getDespawnTime() { return despawnTime; }
     public String getCurrencyName() { return currencyName; }
     public int getBuybackCost() { return buybackCost; }
     public boolean isAllowOtherPlayersToOpen() { return allowOtherPlayersToOpen; }
     public double getHologramYOffset() { return hologramYOffset; }
-    public int getTpChestCooldown() { return tpChestCooldown; } // [NEW]
+    public int getTpChestCooldown() { return tpChestCooldown; } 
     public List<String> getHologramLines() { return hologramLines; }
 
     public String getChatMessageDeath() { return chatMessageDeath; }
@@ -78,7 +84,7 @@ public class ConfigManager {
     public String getChatMessageNoPermission() { return chatMessageNoPermission; }
     public String getChatMessageNoChestFound() { return chatMessageNoChestFound; }
     public String getChatMessageTeleported() { return chatMessageTeleported; }
-    public String getChatMessageTeleportCooldown() { return chatMessageTeleportCooldown; } // [NEW]
+    public String getChatMessageTeleportCooldown() { return chatMessageTeleportCooldown; } 
 
     public boolean isFileLoggingEnabled() { return fileLoggingEnabled; }
     public String getLogFileName() { return logFileName; }
