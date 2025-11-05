@@ -15,3 +15,4 @@ xyz\kaijiieow\deathchest\DeathListener.class
 xyz\kaijiieow\deathchest\DeathChestManager.class
 xyz\kaijiieow\deathchest\BuybackCommand.class
 xyz\kaijiieow\deathchest\ConfigManager.class
+xyz\kaijiieow\deathchest\TeleportChestCommand.class

@@ -4,6 +4,7 @@ settings:
   buyback-cost: 1
   allow-other-players-to-open: false # (ถ้า true = ใครก็เปิดได้, ถ้า false = เจ้าของเท่านั้น)
   hologram-y-offset: 1.5
+  teleport-command-cooldown: 30
   hologram-lines:
     - "&c&lกล่องศพของ %player%"
     - "&eพิกัด: &f%coords%"

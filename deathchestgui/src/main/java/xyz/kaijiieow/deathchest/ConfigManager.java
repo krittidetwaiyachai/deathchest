@@ -12,12 +12,17 @@ public class ConfigManager {
     private int buybackCost;
     private boolean allowOtherPlayersToOpen;
     private double hologramYOffset;
+    private int tpChestCooldown; // [NEW]
     private List<String> hologramLines;
 
     private String chatMessageDeath;
     private String chatMessageExpired;
     private String chatMessageNotYourChest;
     private String chatMessageXpRestored;
+    private String chatMessageNoPermission;
+    private String chatMessageNoChestFound;
+    private String chatMessageTeleported;
+    private String chatMessageTeleportCooldown; // [NEW]
 
     private boolean fileLoggingEnabled;
     private String logFileName;
@@ -39,12 +44,17 @@ public class ConfigManager {
         this.buybackCost = config.getInt("settings.buyback-cost", 1000);
         this.allowOtherPlayersToOpen = config.getBoolean("settings.allow-other-players-to-open", false);
         this.hologramYOffset = config.getDouble("settings.hologram-y-offset", 1.2);
+        this.tpChestCooldown = config.getInt("settings.teleport-command-cooldown", 30); // [NEW]
         this.hologramLines = config.getStringList("settings.hologram-lines");
 
         this.chatMessageDeath = config.getString("messages.death", "§cคุณตาย! ของของคุณอยู่ในกล่องที่ตำแหน่ง: §f%coords% §c(XP: §f%xp%§c)");
         this.chatMessageExpired = config.getString("messages.expired", "§cกล่องเก็บของของคุณหมดเวลา! §eคุณสามารถซื้อคืนได้ด้วยคำสั่ง §f/buyback");
         this.chatMessageNotYourChest = config.getString("messages.not_your_chest", "§cนี่ไม่ใช่กล่องศพของคุณ!");
         this.chatMessageXpRestored = config.getString("messages.xp_restored", "§aคุณได้รับ XP คืน: %xp%");
+        this.chatMessageNoPermission = config.getString("messages.no_permission", "§cคุณไม่มียศพอที่จะใช้คำสั่งนี้!");
+        this.chatMessageNoChestFound = config.getString("messages.no_chest_found", "§cไม่พบกล่องศพของคุณ");
+        this.chatMessageTeleported = config.getString("messages.teleported", "§aวาร์ปไปยังกล่องศพของคุณ!");
+        this.chatMessageTeleportCooldown = config.getString("messages.teleport-cooldown", "§cใจเย็น! ต้องรออีก %time% วินาทีก่อนจะวาร์ปได้"); // [NEW]
 
         this.fileLoggingEnabled = config.getBoolean("logging.file.enable", true);
         this.logFileName = config.getString("logging.file.log-name", "DeathChestGUI.log");
@@ -58,12 +68,17 @@ public class ConfigManager {
     public int getBuybackCost() { return buybackCost; }
     public boolean isAllowOtherPlayersToOpen() { return allowOtherPlayersToOpen; }
     public double getHologramYOffset() { return hologramYOffset; }
+    public int getTpChestCooldown() { return tpChestCooldown; } // [NEW]
     public List<String> getHologramLines() { return hologramLines; }
 
     public String getChatMessageDeath() { return chatMessageDeath; }
     public String getChatMessageExpired() { return chatMessageExpired; }
     public String getChatMessageNotYourChest() { return chatMessageNotYourChest; }
     public String getChatMessageXpRestored() { return chatMessageXpRestored; }
+    public String getChatMessageNoPermission() { return chatMessageNoPermission; }
+    public String getChatMessageNoChestFound() { return chatMessageNoChestFound; }
+    public String getChatMessageTeleported() { return chatMessageTeleported; }
+    public String getChatMessageTeleportCooldown() { return chatMessageTeleportCooldown; } // [NEW]
 
     public boolean isFileLoggingEnabled() { return fileLoggingEnabled; }
     public String getLogFileName() { return logFileName; }

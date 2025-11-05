@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.block.Block;
 import org.bukkit.block.Chest;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Player;
@@ -17,6 +18,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class DeathChestManager {
@@ -27,6 +29,7 @@ public class DeathChestManager {
     private final LoggingService logger;
 
     private final Map<Location, DeathChestData> activeChests = new HashMap<>();
+    private final Map<UUID, Location> playerChestMap = new HashMap<>(); 
 
     public DeathChestManager(DeathChestPlugin plugin, ConfigManager configManager, StorageManager storageManager, LoggingService logger) {
         this.plugin = plugin;
@@ -36,7 +39,13 @@ public class DeathChestManager {
     }
 
     public DeathChestData getActiveChestAt(Location loc) {
-        return activeChests.get(loc);
+        // [FIX] สร้าง Key แบบบังคับเป็น Block Location (ตัดทศนิยม, yaw, pitch ทิ้ง)
+        Location blockLoc = new Location(loc.getWorld(), loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
+        return activeChests.get(blockLoc);
+    }
+
+    public Location getPlayerChestLocation(UUID playerId) {
+        return playerChestMap.get(playerId);
     }
 
     public void createDeathChest(PlayerDeathEvent event) {
@@ -77,14 +86,18 @@ public class DeathChestManager {
              deathLoc.setY(deathLoc.getY() + 1);
         }
 
-        deathLoc.getBlock().setType(Material.CHEST);
-        Chest chest = (Chest) deathLoc.getBlock().getState();
+        // [FIX] สร้าง Key แบบบังคับเป็น Block Location
+        Location blockLoc = new Location(deathLoc.getWorld(), deathLoc.getBlockX(), deathLoc.getBlockY(), deathLoc.getBlockZ());
+
+        blockLoc.getBlock().setType(Material.CHEST);
+        Chest chest = (Chest) blockLoc.getBlock().getState();
 
         event.getDrops().clear();
         player.getInventory().clear();
 
-        Location hologramLoc = deathLoc.clone().add(0.5, configManager.getHologramYOffset(), 0.5);
-        String locationStr = String.format("%d, %d, %d", deathLoc.getBlockX(), deathLoc.getBlockY(), deathLoc.getBlockZ());
+        // [FIX] ใช้ blockLoc.clone() (ที่ไม่มีทศนิยม) เป็นฐาน
+        Location hologramLoc = blockLoc.clone().add(0.5, configManager.getHologramYOffset(), 0.5);
+        String locationStr = String.format("%d, %d, %d", blockLoc.getBlockX(), blockLoc.getBlockY(), blockLoc.getBlockZ());
         
         TextDisplay hologram = player.getWorld().spawn(hologramLoc, TextDisplay.class, (holo) -> {
             holo.setGravity(false);
@@ -92,7 +105,7 @@ public class DeathChestManager {
             holo.setInvulnerable(true);
             holo.setBrightness(new Display.Brightness(15, 15));
             holo.setBackgroundColor(Color.fromARGB(0, 0, 0, 0));
-            holo.setAlignment(TextDisplay.TextAlignment.CENTER);
+            holo.setAlignment(TextDisplay.TextAlignment.CENTER); // [FIX] มึงใช้ TextAlignment.CENTER มาตลอด มันผิด
             holo.setBillboard(Display.Billboard.CENTER);
         });
         
@@ -106,8 +119,11 @@ public class DeathChestManager {
             locationStr
         );
 
-        activeChests.put(deathLoc, data);
-        startDespawnTimer(deathLoc, data);
+        // [FIX] ใช้ Block Location เป็น Key
+        activeChests.put(blockLoc, data);
+        playerChestMap.put(player.getUniqueId(), blockLoc); 
+        // [FIX] ส่ง Block Location ไปให้ Timer
+        startDespawnTimer(blockLoc, data);
 
         player.sendMessage(configManager.getChatMessageDeath()
             .replace("&", "§")
@@ -124,6 +140,7 @@ public class DeathChestManager {
 
             @Override
             public void run() {
+                // [FIX] ต้องใช้ loc (ที่เป็น Block Location อยู่แล้ว) ในการเช็ค
                 if (!activeChests.containsKey(loc) || data.hologramEntity == null || !data.hologramEntity.isValid()) {
                     this.cancel();
                     if (activeChests.containsKey(loc)) {
@@ -161,12 +178,13 @@ public class DeathChestManager {
             data.hologramEntity.remove();
         }
 
+        // [FIX] ใช้ loc (ที่เป็น Block Location อยู่แล้ว)
         if (loc.getBlock().getType() == Material.CHEST) {
-            ((Chest) loc.getBlock().getState()).getInventory().clear();
             loc.getBlock().setType(Material.AIR);
         }
         
         activeChests.remove(loc);
+        playerChestMap.remove(data.ownerUUID); 
 
         if (moveToBuyback && (data.items.length > 0 || data.experience > 0)) {
             DeathDataPackage dataPackage = new DeathDataPackage(data.items, data.experience);

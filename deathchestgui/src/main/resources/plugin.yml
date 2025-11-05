@@ -7,3 +7,7 @@ commands:
   buyback:
     description: เปิด GUI เพื่อซื้อของที่หายคืน
     usage: /buyback
+  tpchest:
+    description: วาร์ปไปยังกล่องศพของตัวเอง
+    usage: /tpchest
+    permission: deathchest.tp
