@@ -42,7 +42,7 @@ public class DeathChestPlugin extends JavaPlugin {
         // [FIX] มึงลืมลงทะเบียนคำสั่งนี้!!
         getCommand("tpchest").setExecutor(new TeleportChestCommand(deathChestManager, configManager)); 
 
-        loggingService.log(LoggingService.LogLevel.INFO, "DeathChestGUI (Refactored) เปิดใช้งานแล้ว! (โหมดโฮโลแกรมทำเอง)");
+        loggingService.log(LoggingService.LogLevel.INFO, "DeathChestGUI (Refactored) เปิดใช้งานแล้ว!");
     }
 
     @Override

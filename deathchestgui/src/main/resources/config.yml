@@ -22,6 +22,6 @@ logging:
     enable: true
     log-name: "DeathChestGUI.log"
   discord:
-    enable: false
+    enable: true
     webhook-url: "https://discord.com/api/webhooks/1431900997340495943/NQuOfa2hvKSnAUNwQKPNenLzfmWG9m25Qp_9xTORGlphVVfwF2mm45YFKTQVRGq6DPbL"
     username: "DeathChest Logger"
