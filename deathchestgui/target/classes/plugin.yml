@@ -11,3 +11,7 @@ commands:
     description: วาร์ปไปยังกล่องศพของตัวเอง
     usage: /tpchest
     permission: deathchest.tp
+  dctp:
+    description: (Admin) เปิด GUI เพื่อวาร์ปไปกล่องศพของผู้เล่น
+    usage: /dctp <player>
+    permission: deathchest.admin.tp

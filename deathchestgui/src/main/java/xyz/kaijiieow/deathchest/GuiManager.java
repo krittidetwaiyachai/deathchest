@@ -1,12 +1,14 @@
 package xyz.kaijiieow.deathchest;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -22,7 +24,9 @@ public class GuiManager {
     private final LoggingService logger;
 
     public static final String GUI_TITLE_PREFIX = "§4[Buyback] - ซื้อของคืน";
+    public static final String ADMIN_GUI_TITLE_PREFIX = "§c[Admin] กล่องของ ";
     private final Map<UUID, Integer> playerPages = new HashMap<>();
+    private final Map<UUID, UUID> adminViewing = new HashMap<>(); // Admin UUID -> Target UUID
     private final ItemStack NEXT_PAGE_ITEM;
     private final ItemStack PREV_PAGE_ITEM;
     private static final int ITEMS_PER_PAGE = 45;
@@ -43,6 +47,10 @@ public class GuiManager {
         ItemMeta prevMeta = PREV_PAGE_ITEM.getItemMeta();
         prevMeta.setDisplayName("§c<-- หน้าก่อนหน้า");
         PREV_PAGE_ITEM.setItemMeta(prevMeta);
+    }
+
+    public UUID getAdminViewing(UUID adminId) {
+        return adminViewing.get(adminId);
     }
 
     public void openBuybackGUI(Player player) {
@@ -108,25 +116,180 @@ public class GuiManager {
         }
     }
 
+    public void openAdminChestGUI(Player admin, OfflinePlayer targetPlayer) {
+        openAdminChestGUI(admin, targetPlayer, 0);
+    }
+
+    public void openAdminChestGUI(Player admin, OfflinePlayer targetPlayer, int page) {
+        UUID targetUUID = targetPlayer.getUniqueId();
+        adminViewing.put(admin.getUniqueId(), targetUUID);
+        playerPages.put(admin.getUniqueId(), page);
+
+        List<Location> chestLocations = plugin.getDeathChestManager().getActiveChestLocations(targetUUID);
+        List<DeathDataPackage> buybackItems = storageManager.getLostItems(targetUUID);
+
+        int totalActiveChests = chestLocations.size();
+        int totalBuybackItems = (buybackItems != null) ? buybackItems.size() : 0;
+        int totalItems = totalActiveChests + totalBuybackItems;
+
+        if (totalItems == 0) {
+            admin.sendMessage(configManager.getChatMessageAdminNoChests()
+                .replace("&", "§")
+                .replace("%player%", targetPlayer.getName()));
+            return;
+        }
+
+        int maxPage = (int) Math.ceil((double) totalItems / ITEMS_PER_PAGE);
+        if (maxPage == 0) maxPage = 1;
+
+        String guiTitle = String.format("%s%s (หน้า %d/%d)", 
+            ADMIN_GUI_TITLE_PREFIX, 
+            targetPlayer.getName(), 
+            page + 1, 
+            maxPage
+        );
+        Inventory gui = Bukkit.createInventory(null, 54, guiTitle);
+
+        int startIndex = page * ITEMS_PER_PAGE;
+        int endIndex = Math.min(startIndex + ITEMS_PER_PAGE, totalItems);
+
+        for (int i = startIndex; i < endIndex; i++) {
+            int slot = i - startIndex;
+
+            if (i < totalActiveChests) {
+                // This is an Active Chest
+                Location loc = chestLocations.get(i);
+                DeathChestData data = plugin.getDeathChestManager().getActiveChestAt(loc);
+
+                if (data == null) continue; 
+
+                ItemStack guiItem = new ItemStack(Material.CHEST);
+                ItemMeta meta = guiItem.getItemMeta();
+                meta.setDisplayName("§c[Active] กล่องศพที่: " + data.locationString);
+                meta.setLore(Arrays.asList(
+                    "§7เจ้าของ: " + data.ownerName,
+                    "§bXP: " + data.experience,
+                    "",
+                    "§eคลิกเพื่อวาร์ป"
+                ));
+                guiItem.setItemMeta(meta);
+                gui.setItem(slot, guiItem);
+            } else {
+                // This is a Buyback Item
+                int buybackIndex = i - totalActiveChests;
+                DeathDataPackage dataPackage = buybackItems.get(buybackIndex);
+
+                ItemStack guiItem = new ItemStack(Material.ENDER_CHEST);
+                ItemMeta meta = guiItem.getItemMeta();
+                meta.setDisplayName("§d[Buyback] ชุดของ (Set " + (buybackIndex + 1) + ")");
+                
+                int totalItemCount = 0;
+                if (dataPackage.getItems() != null) {
+                    for(ItemStack it : dataPackage.getItems()) {
+                        if(it != null) totalItemCount += it.getAmount();
+                    }
+                }
+                
+                meta.setLore(Arrays.asList(
+                    "§7จำนวน: " + totalItemCount + " ชิ้น",
+                    "§bXP: " + dataPackage.getExperience(),
+                    "",
+                    "§8(ไม่สามารถวาร์ปได้)"
+                ));
+                guiItem.setItemMeta(meta);
+                gui.setItem(slot, guiItem);
+            }
+        }
+
+        if (page > 0) {
+            gui.setItem(45, PREV_PAGE_ITEM);
+        }
+        if (endIndex < totalItems) {
+            gui.setItem(53, NEXT_PAGE_ITEM);
+        }
+
+        admin.openInventory(gui);
+    }
+
     public void handleGuiClick(Player player, int slot, ItemStack clickedItem) {
+        String title = player.getOpenInventory().getTitle();
         int currentPage = playerPages.getOrDefault(player.getUniqueId(), 0);
         
         if (slot == 45 && clickedItem.isSimilar(PREV_PAGE_ITEM)) {
-            openBuybackGUI(player, currentPage - 1);
+            int newPage = currentPage - 1;
+            if (title.startsWith(GUI_TITLE_PREFIX)) {
+                openBuybackGUI(player, newPage);
+            } else if (title.startsWith(ADMIN_GUI_TITLE_PREFIX)) {
+                UUID targetUUID = getAdminViewing(player.getUniqueId());
+                if (targetUUID != null) {
+                    openAdminChestGUI(player, Bukkit.getOfflinePlayer(targetUUID), newPage);
+                }
+            }
             return;
         }
         
         if (slot == 53 && clickedItem.isSimilar(NEXT_PAGE_ITEM)) {
-            openBuybackGUI(player, currentPage + 1);
+            int newPage = currentPage + 1;
+            if (title.startsWith(GUI_TITLE_PREFIX)) {
+                openBuybackGUI(player, newPage);
+            } else if (title.startsWith(ADMIN_GUI_TITLE_PREFIX)) {
+                UUID targetUUID = getAdminViewing(player.getUniqueId());
+                if (targetUUID != null) {
+                    openAdminChestGUI(player, Bukkit.getOfflinePlayer(targetUUID), newPage);
+                }
+            }
             return;
         }
 
+        if (title.startsWith(GUI_TITLE_PREFIX)) {
+            handleBuybackClick(player, slot, clickedItem, currentPage);
+        } else if (title.startsWith(ADMIN_GUI_TITLE_PREFIX)) {
+            handleAdminGuiClick(player, slot, clickedItem, currentPage);
+        }
+    }
+
+    private void handleAdminGuiClick(Player admin, int slot, ItemStack clickedItem, int currentPage) {
+        if (clickedItem.getType() != Material.CHEST && clickedItem.getType() != Material.ENDER_CHEST) {
+            return;
+        }
+
+        UUID targetUUID = getAdminViewing(admin.getUniqueId());
+        if (targetUUID == null) {
+            admin.closeInventory();
+            return;
+        }
+
+        int index = (currentPage * ITEMS_PER_PAGE) + slot;
+        List<Location> chestLocations = plugin.getDeathChestManager().getActiveChestLocations(targetUUID);
+        int totalActiveChests = chestLocations.size();
+
+        if (index < totalActiveChests) {
+            // It's an active chest, teleport
+            if (index >= chestLocations.size()) {
+                admin.sendMessage("§cเกิดข้อผิดพลาด: ไม่พบรายการกล่อง (Index: " + index + ")");
+                admin.closeInventory();
+                return;
+            }
+
+            Location targetLoc = chestLocations.get(index);
+            Location safeLoc = targetLoc.clone().add(0.5, 1.0, 0.5);
+            
+            admin.teleport(safeLoc);
+            admin.sendMessage(configManager.getChatMessageAdminTeleported().replace("&", "§"));
+            admin.closeInventory();
+        } else {
+            // It's a buyback item, send message
+            admin.sendMessage(configManager.getChatMessageAdminIsBuyback().replace("&", "§"));
+            // Don't close inventory
+        }
+    }
+
+    private void handleBuybackClick(Player player, int slot, ItemStack clickedItem, int currentPage) {
         if (clickedItem.getType() != Material.CHEST) {
             return;
         }
 
         int index = (currentPage * ITEMS_PER_PAGE) + slot;
-        
         List<DeathDataPackage> playerLostItems = storageManager.getLostItems(player.getUniqueId());
 
         if (playerLostItems == null || index >= playerLostItems.size()) {

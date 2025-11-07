@@ -17,7 +17,9 @@ public class GuiListener implements Listener {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        if (!event.getView().getTitle().startsWith(GuiManager.GUI_TITLE_PREFIX)) {
+        String title = event.getView().getTitle();
+        
+        if (!title.startsWith(GuiManager.GUI_TITLE_PREFIX) && !title.startsWith(GuiManager.ADMIN_GUI_TITLE_PREFIX)) {
             return;
         }
 

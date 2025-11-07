@@ -30,7 +30,7 @@ public class DeathChestManager {
     private final LoggingService logger;
 
     private final Map<Location, DeathChestData> activeChests = new HashMap<>();
-    private final Map<UUID, Location> playerChestMap = new HashMap<>(); 
+    private final Map<UUID, List<Location>> playerChestMap = new HashMap<>(); 
 
     public DeathChestManager(DeathChestPlugin plugin, ConfigManager configManager, StorageManager storageManager, LoggingService logger) {
         this.plugin = plugin;
@@ -40,13 +40,12 @@ public class DeathChestManager {
     }
 
     public DeathChestData getActiveChestAt(Location loc) {
-        // [FIX] สร้าง Key แบบบังคับเป็น Block Location (ตัดทศนิยม, yaw, pitch ทิ้ง)
         Location blockLoc = new Location(loc.getWorld(), loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
         return activeChests.get(blockLoc);
     }
 
-    public Location getPlayerChestLocation(UUID playerId) {
-        return playerChestMap.get(playerId);
+    public List<Location> getActiveChestLocations(UUID playerId) {
+        return playerChestMap.getOrDefault(playerId, new ArrayList<>());
     }
 
     public void createDeathChest(PlayerDeathEvent event) {
@@ -87,7 +86,6 @@ public class DeathChestManager {
              deathLoc.setY(deathLoc.getY() + 1);
         }
 
-        // [FIX] สร้าง Key แบบบังคับเป็น Block Location
         Location blockLoc = new Location(deathLoc.getWorld(), deathLoc.getBlockX(), deathLoc.getBlockY(), deathLoc.getBlockZ());
 
         blockLoc.getBlock().setType(Material.CHEST);
@@ -96,7 +94,6 @@ public class DeathChestManager {
         event.getDrops().clear();
         player.getInventory().clear();
 
-        // [FIX] ใช้ blockLoc.clone() (ที่ไม่มีทศนิยม) เป็นฐาน
         Location hologramLoc = blockLoc.clone().add(0.5, configManager.getHologramYOffset(), 0.5);
         String locationStr = String.format("%d, %d, %d", blockLoc.getBlockX(), blockLoc.getBlockY(), blockLoc.getBlockZ());
         
@@ -105,7 +102,7 @@ public class DeathChestManager {
             holo.setPersistent(false);
             holo.setInvulnerable(true);
             holo.setBrightness(new Display.Brightness(15, 15));
-            holo.setAlignment(TextDisplay.TextAlignment.CENTER); // [FIX] มึงใช้ TextAlignment.CENTER มาตลอด มันผิด
+            holo.setAlignment(TextDisplay.TextAlignment.CENTER); 
             holo.setBillboard(Display.Billboard.CENTER);
         });
         
@@ -119,10 +116,11 @@ public class DeathChestManager {
             locationStr
         );
 
-        // [FIX] ใช้ Block Location เป็น Key
         activeChests.put(blockLoc, data);
-        playerChestMap.put(player.getUniqueId(), blockLoc); 
-        // [FIX] ส่ง Block Location ไปให้ Timer
+        
+        playerChestMap.putIfAbsent(player.getUniqueId(), new ArrayList<>());
+        playerChestMap.get(player.getUniqueId()).add(blockLoc); 
+
         startDespawnTimer(blockLoc, data);
 
         player.sendMessage(configManager.getChatMessageDeath()
@@ -140,7 +138,6 @@ public class DeathChestManager {
 
             @Override
             public void run() {
-                // [FIX] ต้องใช้ loc (ที่เป็น Block Location อยู่แล้ว) ในการเช็ค
                 if (!activeChests.containsKey(loc) || data.hologramEntity == null || !data.hologramEntity.isValid()) {
                     this.cancel();
                     if (activeChests.containsKey(loc)) {
@@ -152,8 +149,6 @@ public class DeathChestManager {
 
                 if (timeLeft <= 0) {
                     this.cancel();
-                    // [EDIT] เปลี่ยน log ธรรมดาไปเรียกใน removeChest
-                    // logger.log(LoggingService.LogLevel.INFO, "กล่องศพของ " + data.ownerName + " หมดเวลา (ย้ายไป buyback)");
                     removeChest(loc, data, true); 
                     return;
                 }
@@ -179,19 +174,21 @@ public class DeathChestManager {
             data.hologramEntity.remove();
         }
 
-        // [FIX] ใช้ loc (ที่เป็น Block Location อยู่แล้ว)
         if (loc.getBlock().getType() == Material.CHEST) {
             loc.getBlock().setType(Material.AIR);
         }
         
         activeChests.remove(loc);
-        playerChestMap.remove(data.ownerUUID); 
+        
+        List<Location> playerChests = playerChestMap.get(data.ownerUUID);
+        if (playerChests != null) {
+            playerChests.remove(loc);
+        }
 
         if (moveToBuyback && (data.items.length > 0 || data.experience > 0)) {
             DeathDataPackage dataPackage = new DeathDataPackage(data.items, data.experience);
             storageManager.addLostItems(data.ownerUUID, dataPackage);
             
-            // [NEW] Log to Discord
             logger.logChestExpired(data.ownerName, data.locationString, data.experience);
 
             Player owner = Bukkit.getPlayer(data.ownerUUID);
@@ -199,12 +196,8 @@ public class DeathChestManager {
                 owner.sendMessage(configManager.getChatMessageExpired().replace("&", "§"));
             }
         } else if (moveToBuyback) {
-            // [NEW] Case: Chest expired but was empty
             logger.log(LogLevel.INFO, "ลบกล่องศพหมดอายุ (แต่ว่างเปล่า) ของ: " + data.ownerName);
         } else {
-            // [NEW] Case: Chest was collected (moveToBuyback = false)
-            // Logging for this is handled by ChestInteractListener.
-            // We don't log anything here to avoid duplicates.
         }
     }
 

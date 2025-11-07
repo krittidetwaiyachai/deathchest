@@ -6,16 +6,17 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import java.util.HashMap; // [NEW]
-import java.util.Map;     // [NEW]
-import java.util.UUID;    // [NEW]
-import java.util.concurrent.TimeUnit; // [NEW]
+import java.util.HashMap;
+import java.util.List; // [NEW]
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 public class TeleportChestCommand implements CommandExecutor {
 
     private final DeathChestManager deathChestManager;
     private final ConfigManager configManager;
-    private final Map<UUID, Long> cooldowns = new HashMap<>(); // [NEW] เก็บเวลาที่ใช้คำสั่งล่าสุด
+    private final Map<UUID, Long> cooldowns = new HashMap<>();
 
     public TeleportChestCommand(DeathChestManager deathChestManager, ConfigManager configManager) {
         this.deathChestManager = deathChestManager;
@@ -36,8 +37,6 @@ public class TeleportChestCommand implements CommandExecutor {
             return true;
         }
 
-        // --- [NEW] Cooldown Check ---
-        // (ข้ามเช็คคูลดาวน์ ถ้ามียศ deathchest.tp.bypass)
         if (!player.hasPermission("deathchest.tp.bypass")) {
             long cooldownSeconds = configManager.getTpChestCooldown();
             if (cooldowns.containsKey(player.getUniqueId())) {
@@ -46,7 +45,7 @@ public class TeleportChestCommand implements CommandExecutor {
                 long timeRemaining = TimeUnit.SECONDS.toMillis(cooldownSeconds) - timeElapsed;
 
                 if (timeRemaining > 0) {
-                    long secondsRemaining = TimeUnit.MILLISECONDS.toSeconds(timeRemaining) + 1; // ปัดเศษขึ้น
+                    long secondsRemaining = TimeUnit.MILLISECONDS.toSeconds(timeRemaining) + 1; 
                     player.sendMessage(
                         configManager.getChatMessageTeleportCooldown()
                             .replace("&", "§")
@@ -56,20 +55,20 @@ public class TeleportChestCommand implements CommandExecutor {
                 }
             }
         }
-        // --- End Cooldown Check ---
 
-        Location chestLoc = deathChestManager.getPlayerChestLocation(player.getUniqueId());
+        List<Location> chestLocs = deathChestManager.getActiveChestLocations(player.getUniqueId());
 
-        if (chestLoc == null) {
+        if (chestLocs.isEmpty()) {
             player.sendMessage(configManager.getChatMessageNoChestFound().replace("&", "§"));
             return true;
         }
+        
+        Location chestLoc = chestLocs.get(chestLocs.size() - 1); // [EDIT] Get the most recent chest
 
         Location safeLoc = chestLoc.clone().add(0.5, 1.0, 0.5);
         player.teleport(safeLoc);
         player.sendMessage(configManager.getChatMessageTeleported().replace("&", "§"));
         
-        // [NEW] ตั้งค่าคูลดาวน์ (เฉพาะถ้ามึงไม่มียศ bypass)
         if (!player.hasPermission("deathchest.tp.bypass")) {
             cooldowns.put(player.getUniqueId(), System.currentTimeMillis()); 
         }

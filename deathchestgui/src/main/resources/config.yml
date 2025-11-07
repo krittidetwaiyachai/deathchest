@@ -18,6 +18,15 @@ messages:
   expired: "§cกล่องเก็บของของคุณหมดเวลา! §eคุณสามารถซื้อคืนได้ด้วยคำสั่ง §f/buyback"
   not_your_chest: "§cนี่ไม่ใช่กล่องศพของคุณ!"
   xp_restored: "§aคุณได้รับ XP คืน: %xp%"
+  no_permission: "§cคุณไม่มียศพอที่จะใช้คำสั่งนี้!"
+  no_chest_found: "§cไม่พบกล่องศพของคุณ"
+  teleported: "§aวาร์ปไปยังกล่องศพของคุณ!"
+  teleport-cooldown: "§cใจเย็น! ต้องรออีก %time% วินาทีก่อนจะวาร์ปได้"
+  
+  admin-no-player-found: "§cไม่พบผู้เล่นชื่อ %player% หรือผู้เล่นนี้ยังไม่เคยเข้าเซิร์ฟเวอร์"
+  admin-no-chests-found: "§eผู้เล่น %player% ไม่มีกล่องศพที่กำลังใช้งานอยู่ หรือของใน Buyback"
+  admin-teleported: "§aวาร์ปไปยังกล่องศพ!"
+  admin-is-buyback: "§cนี่คือรายการใน Buyback ไม่สามารถวาร์ปได้"
 
 logging:
   file:

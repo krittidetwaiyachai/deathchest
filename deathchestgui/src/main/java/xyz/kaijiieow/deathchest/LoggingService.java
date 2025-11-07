@@ -1,6 +1,7 @@
 package xyz.kaijiieow.deathchest;
 
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
 import java.io.OutputStream;
@@ -61,21 +62,34 @@ public class LoggingService {
 
     // ===================== Public APIs =====================
 
-    public void log(LogLevel level, String message) {
+    /**
+     * Logs a message to console, file, and optionally sends a SIMPLE Discord webhook.
+     * @param level Log level
+     * @param message The message
+     * @param sendSimpleWebhook true to send a simple webhook, false if a rich one will be sent separately.
+     */
+    public void log(LogLevel level, String message, boolean sendSimpleWebhook) {
         plugin.getLogger().log(level.getJavaLevel(), message);
 
         if (configManager.isFileLoggingEnabled() && fileLogger != null) {
             fileLogger.log(level.getJavaLevel(), message);
         }
 
-        if (configManager.isDiscordLoggingEnabled()) {
+        if (configManager.isDiscordLoggingEnabled() && sendSimpleWebhook) {
             sendSimpleDiscordWebhook(level, message);
         }
     }
 
+    /**
+     * Logs a message to console, file, and sends a SIMPLE Discord webhook.
+     */
+    public void log(LogLevel level, String message) {
+        log(level, message, true); // Default to sending a simple webhook
+    }
+
     public void logDeath(Player player, String locationStr, int totalExp) {
         String msg = "สร้างกล่องศพให้ " + player.getName() + " ที่ " + locationStr + " (XP: " + totalExp + ")";
-        log(LogLevel.INFO, msg);
+        log(LogLevel.INFO, msg, false); // [EDIT] Don't send simple webhook
 
         if (configManager.isDiscordLoggingEnabled()) {
             sendRichDiscordWebhook(
@@ -94,7 +108,7 @@ public class LoggingService {
             "%s ซื้อของคืน (ชุด %d) ราคา %d %s (ได้รับ XP: %d)",
             player.getName(), setIndex, cost, currency, experience
         );
-        log(LogLevel.INFO, msg);
+        log(LogLevel.INFO, msg, false); // [EDIT] Don't send simple webhook
 
         if (configManager.isDiscordLoggingEnabled()) {
             sendRichDiscordWebhook(
@@ -114,7 +128,7 @@ public class LoggingService {
             "กล่องศพของ %s ที่ %s หมดเวลา (XP: %d) - ย้ายไป /buyback",
             playerName, locationStr, experience
         );
-        log(LogLevel.WARN, msg); // ใช้ WARN เพราะเป็นสีเหลือง
+        log(LogLevel.WARN, msg, false); // [EDIT] Don't send simple webhook
 
         if (configManager.isDiscordLoggingEnabled()) {
             sendRichDiscordWebhook(
@@ -134,7 +148,7 @@ public class LoggingService {
             "%s เก็บของจากกล่องศพที่ %s จนหมด กล่องถูกลบ",
             playerName, locationStr
         );
-        log(LogLevel.INFO, msg);
+        log(LogLevel.INFO, msg, false); // [EDIT] Don't send simple webhook
 
         if (configManager.isDiscordLoggingEnabled()) {
             sendRichDiscordWebhook(
@@ -147,6 +161,57 @@ public class LoggingService {
             );
         }
     }
+
+    // ===================== [NEW] Admin Logs =====================
+
+    public void logAdminGuiOpen(Player admin, OfflinePlayer targetPlayer) {
+        String msg = String.format(
+            "แอดมิน %s เปิดดูรายการกล่องศพของ %s",
+            admin.getName(), targetPlayer.getName()
+        );
+        log(LogLevel.WARN, msg, false); // [EDIT] Don't send simple webhook
+
+        if (configManager.isDiscordLoggingEnabled()) {
+            sendRichDiscordWebhook(
+                LogLevel.WARN, // สีเหลือง
+                "👮‍ Admin ตรวจสอบ",
+                admin.getName(),
+                "เป้าหมาย: " + targetPlayer.getName(),
+                null, 
+                "แอดมินเปิด GUI ดูรายการกล่องศพทั้งหมด (Active และ Buyback) ของผู้เล่น"
+            );
+        }
+    }
+
+    public void logAdminTpSuccess(Player admin, OfflinePlayer targetPlayer, String locationString) {
+        String msg = String.format(
+            "แอดมิน %s วาร์ปไปที่กล่องศพของ %s (ที่ %s)",
+            admin.getName(), targetPlayer.getName(), locationString
+        );
+        log(LogLevel.WARN, msg, false); // [EDIT] Don't send simple webhook
+
+        if (configManager.isDiscordLoggingEnabled()) {
+            sendRichDiscordWebhook(
+                LogLevel.WARN, // สีเหลือง
+                "🚀 Admin วาร์ป",
+                admin.getName(),
+                "เป้าหมาย: " + targetPlayer.getName(),
+                null, 
+                "วาร์ปไปยังกล่องศพที่ Active ที่พิกัด: " + locationString
+            );
+        }
+    }
+
+    public void logAdminTpFailBuyback(Player admin, OfflinePlayer targetPlayer, int buybackIndex) {
+        String msg = String.format(
+            "แอดมิน %s พยายามวาร์ปไปที่กล่อง Buyback (Set %d) ของ %s แต่ไม่สำเร็จ",
+            admin.getName(), buybackIndex + 1, targetPlayer.getName()
+        );
+        log(LogLevel.INFO, msg, false); // [EDIT] Don't send simple webhook (as intended)
+
+        // ไม่ส่งไป Discord เพราะมันจะรกเกินไป ข้อความในเกมพอบอก
+    }
+
 
     // ===================== Discord Helpers =====================
 

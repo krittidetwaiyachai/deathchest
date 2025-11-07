@@ -30,15 +30,14 @@ public class DeathChestPlugin extends JavaPlugin {
         this.deathChestManager = new DeathChestManager(this, configManager, storageManager, loggingService);
         this.guiManager = new GuiManager(this, configManager, hookManager, storageManager, loggingService);
 
-        // --- ลงทะเบียน Listeners ---
         getServer().getPluginManager().registerEvents(new DeathListener(deathChestManager), this);
         getServer().getPluginManager().registerEvents(new GuiListener(guiManager), this);
         getServer().getPluginManager().registerEvents(new ChestInteractListener(this, deathChestManager, configManager), this);
         getServer().getPluginManager().registerEvents(new ChestProtectionListener(deathChestManager), this); 
         
-        // --- ลงทะเบียน Commands ---
         getCommand("buyback").setExecutor(new BuybackCommand(guiManager));
         getCommand("tpchest").setExecutor(new TeleportChestCommand(deathChestManager, configManager)); 
+        getCommand("dctp").setExecutor(new AdminChestCommand(guiManager, configManager)); 
 
         loggingService.log(LoggingService.LogLevel.INFO, "DeathChestGUI (Refactored) เปิดใช้งานแล้ว!");
     }
@@ -57,7 +56,6 @@ public class DeathChestPlugin extends JavaPlugin {
         }
     }
 
-    // --- Getters ---
     public ConfigManager getConfigManager() { return configManager; }
     public HookManager getHookManager() { return hookManager; }
     public StorageManager getStorageManager() { return storageManager; }

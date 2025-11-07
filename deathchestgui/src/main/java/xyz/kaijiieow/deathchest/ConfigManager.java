@@ -8,7 +8,7 @@ public class ConfigManager {
 
     private final DeathChestPlugin plugin;
     private int despawnTime;
-    private String economyProvider; // [NEW]
+    private String economyProvider; 
     private String currencyName;
     private int buybackCost;
     private boolean allowOtherPlayersToOpen;
@@ -24,6 +24,11 @@ public class ConfigManager {
     private String chatMessageNoChestFound;
     private String chatMessageTeleported;
     private String chatMessageTeleportCooldown; 
+
+    private String chatMessageAdminNoPlayerFound;
+    private String chatMessageAdminNoChests;
+    private String chatMessageAdminTeleported;
+    private String chatMessageAdminIsBuyback;
 
     private boolean fileLoggingEnabled;
     private String logFileName;
@@ -60,6 +65,11 @@ public class ConfigManager {
         this.chatMessageTeleported = config.getString("messages.teleported", "§aวาร์ปไปยังกล่องศพของคุณ!");
         this.chatMessageTeleportCooldown = config.getString("messages.teleport-cooldown", "§cใจเย็น! ต้องรออีก %time% วินาทีก่อนจะวาร์ปได้"); 
 
+        this.chatMessageAdminNoPlayerFound = config.getString("messages.admin-no-player-found", "§cไม่พบผู้เล่นชื่อ %player% หรือผู้เล่นนี้ยังไม่เคยเข้าเซิร์ฟเวอร์");
+        this.chatMessageAdminNoChests = config.getString("messages.admin-no-chests-found", "§eผู้เล่น %player% ไม่มีกล่องศพที่กำลังใช้งานอยู่ หรือของใน Buyback");
+        this.chatMessageAdminTeleported = config.getString("messages.admin-teleported", "§aวาร์ปไปยังกล่องศพ!");
+        this.chatMessageAdminIsBuyback = config.getString("messages.admin-is-buyback", "§cนี่คือรายการใน Buyback ไม่สามารถวาร์ปได้");
+
         this.fileLoggingEnabled = config.getBoolean("logging.file.enable", true);
         this.logFileName = config.getString("logging.file.log-name", "DeathChestGUI.log");
         this.discordLoggingEnabled = config.getBoolean("logging.discord.enable", false);
@@ -85,6 +95,11 @@ public class ConfigManager {
     public String getChatMessageNoChestFound() { return chatMessageNoChestFound; }
     public String getChatMessageTeleported() { return chatMessageTeleported; }
     public String getChatMessageTeleportCooldown() { return chatMessageTeleportCooldown; } 
+
+    public String getChatMessageAdminNoPlayerFound() { return chatMessageAdminNoPlayerFound; }
+    public String getChatMessageAdminNoChests() { return chatMessageAdminNoChests; }
+    public String getChatMessageAdminTeleported() { return chatMessageAdminTeleported; }
+    public String getChatMessageAdminIsBuyback() { return chatMessageAdminIsBuyback; }
 
     public boolean isFileLoggingEnabled() { return fileLoggingEnabled; }
     public String getLogFileName() { return logFileName; }
