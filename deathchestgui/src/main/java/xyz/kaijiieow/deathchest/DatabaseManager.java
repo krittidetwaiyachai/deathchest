@@ -23,10 +23,6 @@ public class DatabaseManager {
     private final LoggingService logger;
     private HikariDataSource dataSource;
 
-    // [FIX] ลบ Inner class DatabaseChestData ทิ้ง (ย้ายไปไฟล์ใหม่)
-    // [FIX] ลบ Inner class DatabaseBuybackData ทิ้ง (ย้ายไปไฟล์ใหม่)
-
-
     public DatabaseManager(DeathChestPlugin plugin, ConfigManager configManager, LoggingService logger) {
         this.plugin = plugin;
         this.configManager = configManager;
@@ -66,14 +62,11 @@ public class DatabaseManager {
 
         } catch (Exception e) {
             logger.log(LoggingService.LogLevel.ERROR, "เชื่อมต่อ Database ไม่สำเร็จ! " + e.getMessage());
-            // [FIX] Throw exception to stop plugin load
             throw new RuntimeException("Failed to connect to database", e);
         }
     }
 
     private void createTables() {
-        // ... (existing createTables code) ...
-        // ตารางสำหรับของใน /buyback
         String buybackTable = "CREATE TABLE IF NOT EXISTS buyback_items (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "owner_uuid VARCHAR(36) NOT NULL, " +
@@ -82,8 +75,6 @@ public class DatabaseManager {
                 "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
                 ");";
 
-        // ตารางสำหรับกล่องที่ยัง Active (ยังไม่หมดเวลา)
-        // [FIX] Added INDEX for faster lookups and deletes
         String activeChestTable = "CREATE TABLE IF NOT EXISTS active_chests (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "owner_uuid VARCHAR(36) NOT NULL, " +
@@ -98,24 +89,18 @@ public class DatabaseManager {
         
         String activeChestIndex = "CREATE INDEX IF NOT EXISTS idx_active_chests_coords ON active_chests (world, x, y, z);";
 
-        // [FIX] เปลี่ยนมาใช้ Statement ธรรมดา แล้ว execute ทีละคำสั่ง
-        // ปัญหาเดิมคือ PreparedStatement มันถูก "เตรียม" พร้อมกัน
-        // ทำให้คำสั่ง CREATE INDEX มันเช็คหา table ที่ยังไม่ถูกสร้าง
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement()) {
             
-            // สร้างตารางก่อน
             stmt.execute(buybackTable);
             stmt.execute(activeChestTable);
-            
-            // ค่อยสร้าง Index ทีหลัง
             stmt.execute(activeChestIndex); 
 
             logger.log(LoggingService.LogLevel.INFO, "ตรวจสอบ/สร้างตาราง Database เรียบร้อย");
 
         } catch (SQLException e) {
             logger.log(LoggingService.LogLevel.ERROR, "ไม่สามารถสร้างตาราง Database ได้: " + e.getMessage());
-            e.printStackTrace(); // [DEBUG] พิมพ์ Error ให้หมด
+            e.printStackTrace();
         }
     }
 
@@ -137,13 +122,16 @@ public class DatabaseManager {
 
     public List<DatabaseChestData> loadAllActiveChests() {
         List<DatabaseChestData> chests = new ArrayList<>();
-        String sql = "SELECT owner_uuid, world, x, y, z, items_base64, experience FROM active_chests";
+        // [FIX]
+        String sql = "SELECT owner_uuid, world, x, y, z, items_base64, experience, created_at FROM active_chests";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             
             while (rs.next()) {
-                // [FIX] ใช้คลาสใหม่ที่ย้ายออกมา
+                // [FIX]
+                long createdAt = rs.getTimestamp("created_at").getTime();
+                
                 chests.add(new DatabaseChestData(
                     rs.getString("owner_uuid"),
                     rs.getString("world"),
@@ -151,7 +139,8 @@ public class DatabaseManager {
                     rs.getInt("y"),
                     rs.getInt("z"),
                     rs.getString("items_base64"),
-                    rs.getInt("experience")
+                    rs.getInt("experience"),
+                    createdAt // [FIX]
                 ));
             }
         } catch (SQLException e) {
@@ -206,7 +195,6 @@ public class DatabaseManager {
              ResultSet rs = ps.executeQuery()) {
             
             while (rs.next()) {
-                // [FIX] ใช้คลาสใหม่ที่ย้ายออกมา
                 items.add(new DatabaseBuybackData(
                     rs.getLong("id"),
                     rs.getString("owner_uuid"),

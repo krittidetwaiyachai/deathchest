@@ -60,22 +60,17 @@ public class DeathChestManager {
                 Location loc = new Location(world, dbChest.x, dbChest.y, dbChest.z);
                 Block block = loc.getBlock();
                 
-                // [FIX] ตรรกะใหม่ที่ถูกต้อง
                 if (block.getType() != Material.CHEST) {
-                    // ถ้ามันไม่ใช่กล่อง, เช็คว่ามันเป็น AIR หรือบล็อกที่ทับได้ (เช่น หญ้าสูง)
                     if (block.getType() != Material.AIR && !block.isPassable()) {
-                        // ถ้ามันไม่ใช่ AIR และเป็นบล็อกทึบ/ขวาง (เช่น STONE)
                         logger.log(LogLevel.WARN, "ไม่สามารถวางกล่องศพที่ " + loc + " ได้เพราะมีบล็อก " + block.getType() + " ขวางอยู่ - ทำการลบจาก DB");
                         databaseManager.deleteActiveChest(loc);
                         continue;
                     }
                     
-                    // ถ้ามันเป็น AIR หรือ บล็อกทับได้ (GRASS, WATER) ก็วางกล่องไปเลย
                     block.setType(Material.CHEST);
                     logger.log(LogLevel.INFO, "สร้างกล่องศพที่หายไปตอนรีเซิร์ฟ " + loc);
                 }
                 
-                // เช็คซ้ำอีกที เผื่อว่าการ setType มันล้มเหลว (เช่น โดน WorldGuard บล็อค)
                 if (block.getType() != Material.CHEST) {
                      logger.log(LogLevel.ERROR, "พยายามวางกล่องที่ " + loc + " แต่ล้มเหลว! (อาจถูกปลั๊กอินอื่นบล็อค) - ทำการลบจาก DB");
                      databaseManager.deleteActiveChest(loc);
@@ -117,7 +112,14 @@ public class DeathChestManager {
                 playerChestMap.putIfAbsent(ownerUuid, new ArrayList<>());
                 playerChestMap.get(ownerUuid).add(loc);
 
-                startDespawnTimer(loc, data);
+                // [FIX]
+                long creationTimeMillis = dbChest.createdAt;
+                long currentTimeMillis = System.currentTimeMillis();
+                long totalDespawnMillis = configManager.getDespawnTime() * 1000L;
+                long elapsedMillis = currentTimeMillis - creationTimeMillis;
+                int remainingSeconds = (int) ((totalDespawnMillis - elapsedMillis) / 1000L);
+                
+                startDespawnTimer(loc, data, remainingSeconds);
                 count++;
             } catch (Exception e) {
                 logger.log(LogLevel.ERROR, "ไม่สามารถโหลด Active Chest: " + e.getMessage());
@@ -210,7 +212,8 @@ public class DeathChestManager {
         playerChestMap.putIfAbsent(player.getUniqueId(), new ArrayList<>());
         playerChestMap.get(player.getUniqueId()).add(blockLoc); 
 
-        startDespawnTimer(blockLoc, data);
+        // [FIX]
+        startDespawnTimer(blockLoc, data, configManager.getDespawnTime());
         
         databaseManager.saveActiveChest(data);
 
@@ -223,9 +226,11 @@ public class DeathChestManager {
         logger.logDeath(player, locationStr, totalExp);
     }
 
-    private void startDespawnTimer(Location loc, DeathChestData data) {
+    // [FIX]
+    private void startDespawnTimer(Location loc, DeathChestData data, int initialTimeLeft) {
         new BukkitRunnable() {
-            int timeLeft = configManager.getDespawnTime();
+            // [FIX]
+            int timeLeft = initialTimeLeft;
 
             @Override
             public void run() {
