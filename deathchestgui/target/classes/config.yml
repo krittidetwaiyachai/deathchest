@@ -14,7 +14,7 @@ database:
   #   password: "password"
 
 settings:
-  despawn-timer: 20
+  despawn-timer: 200
   economy-provider: "VAULT"
   # 'currency-name' จะถูกใช้เมื่อ 'economy-provider' เป็น "COINS_ENGINE" เท่านั้น
   # currency-name: "coins"

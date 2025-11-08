@@ -41,7 +41,13 @@ public class DeathChestPlugin extends JavaPlugin {
         this.guiManager = new GuiManager(this, configManager, hookManager, storageManager, loggingService);
         
         this.storageManager.loadBuybackItemsFromDatabase();
-        this.deathChestManager.loadActiveChestsFromDatabase();
+        
+        new org.bukkit.scheduler.BukkitRunnable() {
+            @Override
+            public void run() {
+                deathChestManager.loadActiveChestsFromDatabase();
+            }
+        }.runTaskLater(this, 20L);
 
         getServer().getPluginManager().registerEvents(new DeathListener(deathChestManager), this);
         getServer().getPluginManager().registerEvents(new GuiListener(guiManager), this);

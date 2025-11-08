@@ -12,6 +12,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Timestamp; // [FIX] เพิ่ม Import นี้
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -118,18 +119,14 @@ public class DatabaseManager {
         }
     }
 
-    // --- [NEW] CRUD Methods ---
-
     public List<DatabaseChestData> loadAllActiveChests() {
         List<DatabaseChestData> chests = new ArrayList<>();
-        // [FIX]
         String sql = "SELECT owner_uuid, world, x, y, z, items_base64, experience, created_at FROM active_chests";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             
             while (rs.next()) {
-                // [FIX]
                 long createdAt = rs.getTimestamp("created_at").getTime();
                 
                 chests.add(new DatabaseChestData(
@@ -140,7 +137,7 @@ public class DatabaseManager {
                     rs.getInt("z"),
                     rs.getString("items_base64"),
                     rs.getInt("experience"),
-                    createdAt // [FIX]
+                    createdAt
                 ));
             }
         } catch (SQLException e) {
@@ -150,7 +147,8 @@ public class DatabaseManager {
     }
 
     public void saveActiveChest(DeathChestData data) {
-        String sql = "INSERT INTO active_chests (owner_uuid, world, x, y, z, items_base64, experience) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        // [FIX] เพิ่ม created_at เข้าไปใน query
+        String sql = "INSERT INTO active_chests (owner_uuid, world, x, y, z, items_base64, experience, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             
@@ -164,6 +162,8 @@ public class DatabaseManager {
             ps.setInt(5, loc.getBlockZ());
             ps.setString(6, itemsBase64);
             ps.setInt(7, data.experience);
+            // [FIX] เซฟเวลาปัจจุบันลงไปตรงๆ เลย
+            ps.setTimestamp(8, new Timestamp(System.currentTimeMillis()));
             ps.executeUpdate();
 
         } catch (Exception e) {
