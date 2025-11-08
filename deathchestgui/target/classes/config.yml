@@ -1,6 +1,17 @@
 database:
+  # ประเภทฐานข้อมูล: "SQLITE" หรือ "MYSQL"
   type: "SQLITE"
+  
+  # การตั้งค่าสำหรับ SQLITE (ใช้ไฟล์)
   filename: "storage.db"
+  
+  # การตั้งค่าสำหรับ MYSQL (ใช้เซิร์ฟเวอร์)
+  # mysql:
+  #   host: "localhost"
+  #   port: 3306
+  #   database: "deathchest"
+  #   username: "user"
+  #   password: "password"
 
 settings:
   despawn-timer: 20

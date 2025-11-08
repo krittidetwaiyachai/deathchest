@@ -35,6 +35,16 @@ public class ConfigManager {
     private boolean discordLoggingEnabled;
     private String discordWebhookUrl;
     private String discordUsername;
+    
+    // --- [NEW] Database Fields ---
+    private String dbType;
+    private String dbFilename;
+    private String dbHost;
+    private int dbPort;
+    private String dbDatabase;
+    private String dbUsername;
+    private String dbPassword;
+    // ----------------------------
 
     public ConfigManager(DeathChestPlugin plugin) {
         this.plugin = plugin;
@@ -45,6 +55,16 @@ public class ConfigManager {
 
     private void loadConfigValues() {
         FileConfiguration config = plugin.getConfig();
+        
+        // --- [NEW] Load Database Config ---
+        this.dbType = config.getString("database.type", "SQLITE").toUpperCase();
+        this.dbFilename = config.getString("database.filename", "storage.db");
+        this.dbHost = config.getString("database.mysql.host", "localhost");
+        this.dbPort = config.getInt("database.mysql.port", 3306);
+        this.dbDatabase = config.getString("database.mysql.database", "deathchest");
+        this.dbUsername = config.getString("database.mysql.username", "user");
+        this.dbPassword = config.getString("database.mysql.password", "pass");
+        // ----------------------------------
 
         this.economyProvider = config.getString("settings.economy-provider", "COINS_ENGINE").toUpperCase();
         
@@ -76,6 +96,16 @@ public class ConfigManager {
         this.discordWebhookUrl = config.getString("logging.discord.webhook-url", "YOUR_WEBHOOK_URL_HERE");
         this.discordUsername = config.getString("logging.discord.username", "DeathChest Logger");
     }
+    
+    // --- [NEW] Database Getters ---
+    public String getDbType() { return dbType; }
+    public String getDbFilename() { return dbFilename; }
+    public String getDbHost() { return dbHost; }
+    public int getDbPort() { return dbPort; }
+    public String getDbDatabase() { return dbDatabase; }
+    public String getDbUsername() { return dbUsername; }
+    public String getDbPassword() { return dbPassword; }
+    // ----------------------------
 
     public String getEconomyProvider() { return economyProvider; }
 

@@ -3,6 +3,7 @@ d:\plugin\DeathChest\deathchestgui\src\main\java\xyz\kaijiieow\deathchest\Buybac
 d:\plugin\DeathChest\deathchestgui\src\main\java\xyz\kaijiieow\deathchest\ChestInteractListener.java
 d:\plugin\DeathChest\deathchestgui\src\main\java\xyz\kaijiieow\deathchest\ChestProtectionListener.java
 d:\plugin\DeathChest\deathchestgui\src\main\java\xyz\kaijiieow\deathchest\ConfigManager.java
+d:\plugin\DeathChest\deathchestgui\src\main\java\xyz\kaijiieow\deathchest\DatabaseManager.java
 d:\plugin\DeathChest\deathchestgui\src\main\java\xyz\kaijiieow\deathchest\DeathChestData.java
 d:\plugin\DeathChest\deathchestgui\src\main\java\xyz\kaijiieow\deathchest\DeathChestManager.java
 d:\plugin\DeathChest\deathchestgui\src\main\java\xyz\kaijiieow\deathchest\DeathChestPlugin.java
@@ -12,5 +13,6 @@ d:\plugin\DeathChest\deathchestgui\src\main\java\xyz\kaijiieow\deathchest\GuiLis
 d:\plugin\DeathChest\deathchestgui\src\main\java\xyz\kaijiieow\deathchest\GuiManager.java
 d:\plugin\DeathChest\deathchestgui\src\main\java\xyz\kaijiieow\deathchest\HookManager.java
 d:\plugin\DeathChest\deathchestgui\src\main\java\xyz\kaijiieow\deathchest\LoggingService.java
+d:\plugin\DeathChest\deathchestgui\src\main\java\xyz\kaijiieow\deathchest\SerializationUtils.java
 d:\plugin\DeathChest\deathchestgui\src\main\java\xyz\kaijiieow\deathchest\StorageManager.java
 d:\plugin\DeathChest\deathchestgui\src\main\java\xyz\kaijiieow\deathchest\TeleportChestCommand.java

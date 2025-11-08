@@ -88,10 +88,14 @@
                                     <pattern>com.zaxxer.hikari</pattern>
                                     <shadedPattern>xyz.kaijiieow.deathchest.libs.hikari</shadedPattern>
                                 </relocation>
+                                <!-- 
+                                 [FIX] ลบ relocation ของ org.sqlite ทิ้งไปเลย
+                                 ไม่งั้นมันหา native library ไม่เจอ
                                 <relocation>
                                     <pattern>org.sqlite</pattern>
                                     <shadedPattern>xyz.kaijiieow.deathchest.libs.sqlite</shadedPattern>
                                 </relocation>
+                                -->
                             </relocations>
                         </configuration>
                     </execution>

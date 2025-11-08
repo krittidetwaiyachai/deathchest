@@ -1,4 +1,5 @@
 xyz\kaijiieow\deathchest\LoggingService$LogLevel.class
+xyz\kaijiieow\deathchest\SerializationUtils.class
 xyz\kaijiieow\deathchest\AdminChestCommand.class
 xyz\kaijiieow\deathchest\HookManager$Provider.class
 xyz\kaijiieow\deathchest\HookManager.class
@@ -13,6 +14,7 @@ xyz\kaijiieow\deathchest\DeathChestData.class
 xyz\kaijiieow\deathchest\DeathChestManager$1.class
 xyz\kaijiieow\deathchest\GuiListener.class
 xyz\kaijiieow\deathchest\DeathDataPackage.class
+xyz\kaijiieow\deathchest\DatabaseManager.class
 xyz\kaijiieow\deathchest\DeathListener.class
 xyz\kaijiieow\deathchest\DeathChestManager.class
 xyz\kaijiieow\deathchest\BuybackCommand.class
