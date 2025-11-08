@@ -14,6 +14,7 @@ public class DeathChestData {
     ItemStack[] items;
     int experience;
     String locationString;
+    int timeLeft; // <-- [FIX] เพิ่ม field นี้
 
     public DeathChestData(UUID ownerUUID, String ownerName, Chest chest, TextDisplay hologramEntity, ItemStack[] items, int experience, String locationString) {
         this.ownerUUID = ownerUUID;
@@ -23,5 +24,6 @@ public class DeathChestData {
         this.items = items;
         this.experience = experience;
         this.locationString = locationString;
+        this.timeLeft = 0; // <-- [FIX] เพิ่ม
     }
 }

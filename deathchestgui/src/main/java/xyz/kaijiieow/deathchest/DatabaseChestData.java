@@ -1,11 +1,14 @@
 package xyz.kaijiieow.deathchest;
 
 public class DatabaseChestData {
-    public final String ownerUuid, world, itemsBase64;
-    public final int x, y, z, experience;
-    public final long createdAt; // [FIX]
+    String ownerUuid;
+    String world;
+    int x, y, z;
+    String itemsBase64;
+    int experience;
+    int remainingSeconds; // <-- [FIX] เปลี่ยนจาก long createdAt
 
-    public DatabaseChestData(String ownerUuid, String world, int x, int y, int z, String itemsBase64, int experience, long createdAt) { // [FIX]
+    public DatabaseChestData(String ownerUuid, String world, int x, int y, int z, String itemsBase64, int experience, int remainingSeconds) { // <-- [FIX] เปลี่ยน
         this.ownerUuid = ownerUuid;
         this.world = world;
         this.x = x;
@@ -13,6 +16,6 @@ public class DatabaseChestData {
         this.z = z;
         this.itemsBase64 = itemsBase64;
         this.experience = experience;
-        this.createdAt = createdAt; // [FIX]
+        this.remainingSeconds = remainingSeconds; // <-- [FIX] เปลี่ยน
     }
 }

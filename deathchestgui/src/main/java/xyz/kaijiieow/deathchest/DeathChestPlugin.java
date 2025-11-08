@@ -69,6 +69,13 @@ public class DeathChestPlugin extends JavaPlugin {
         //     deathChestManager.cleanupAllChests();
         // }
         
+        // --- [FIX] เพิ่มตรงนี้ ---
+        if (deathChestManager != null && loggingService != null) {
+            loggingService.log(LoggingService.LogLevel.INFO, "กำลังเซฟเวลาที่เหลือของกล่องศพ...");
+            deathChestManager.saveAllChestTimes();
+        }
+        // -------------------------
+        
         if (databaseManager != null) {
             databaseManager.close();
         }
