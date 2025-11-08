@@ -47,13 +47,13 @@ public class DeathChestManager {
     }
     
     public void loadActiveChestsFromDatabase() {
-        List<DatabaseChestData> dbChests = databaseManager.loadAllActiveChests();
+        List<DatabaseChestData> dbChests = databaseManager.loadAllActiveChests(); // [FIX] นี่คือ List ของ DTO
         if (dbChests.isEmpty()) {
             return;
         }
 
         int count = 0;
-        for (DatabaseChestData dbChest : dbChests) {
+        for (DatabaseChestData dbChest : dbChests) { // [FIX] dbChest คือ DTO
             try {
                 World world = Bukkit.getWorld(dbChest.world); 
                 if (world == null) {
@@ -104,7 +104,7 @@ public class DeathChestManager {
                     holo.setGlowColorOverride(Color.YELLOW);
                 });
                 
-                // [FIX] เพิ่ม dbChest.x, y, z เข้าไปใน constructor
+                // [FIX] สร้าง DeathChestData (ตัวจริง) โดยใช้ข้อมูลจาก dbChest (DTO)
                 DeathChestData data = new DeathChestData(
                     ownerUuid,
                     ownerName,
@@ -114,9 +114,10 @@ public class DeathChestManager {
                     dbChest.experience,
                     locationStr,
                     dbChest.world,
-                    dbChest.x, // <-- [FIX]
-                    dbChest.y, // <-- [FIX]
-                    dbChest.z  // <-- [FIX]
+                    dbChest.x, 
+                    dbChest.y, 
+                    dbChest.z,
+                    dbChest.createdAt // [FIX]
                 );
 
                 activeChests.put(loc, data);
@@ -205,7 +206,9 @@ public class DeathChestManager {
             holo.setGlowColorOverride(Color.YELLOW);
         });
         
-        // [FIX] เพิ่ม blockLoc.getBlockX(), Y, Z เข้าไปใน constructor
+        long creationTime = System.currentTimeMillis(); // [FIX]
+
+        // [FIX] สร้าง DeathChestData (ตัวจริง)
         DeathChestData data = new DeathChestData(
             player.getUniqueId(), 
             player.getName(), 
@@ -215,9 +218,10 @@ public class DeathChestManager {
             totalExp,
             locationStr,
             player.getWorld().getName(),
-            blockLoc.getBlockX(), // <-- [FIX]
-            blockLoc.getBlockY(), // <-- [FIX]
-            blockLoc.getBlockZ()  // <-- [FIX]
+            blockLoc.getBlockX(),
+            blockLoc.getBlockY(),
+            blockLoc.getBlockZ(),
+            creationTime // [FIX]
         );
 
         activeChests.put(blockLoc, data);
@@ -228,7 +232,7 @@ public class DeathChestManager {
         int initialTime = configManager.getDespawnTime();
         startDespawnTimer(blockLoc, data, initialTime); 
         
-        databaseManager.saveActiveChest(data, initialTime); 
+        databaseManager.saveActiveChest(data, initialTime, creationTime); // [FIX]
 
         player.sendMessage(configManager.getChatMessageDeath()
             .replace("&", "§")
@@ -344,25 +348,20 @@ public class DeathChestManager {
         }
     }
 
-    // --- [FIX] แก้ไข Method นี้ ---
     public void saveAllChestTimes() {
         if (activeChests.isEmpty()) {
             return;
         }
         logger.log(LogLevel.INFO, "กำลังเซฟเวลาที่เหลือของ Active Chests " + activeChests.size() + " กล่อง...");
         
-        // [FIX] วนลูป values() แทน entrySet() เราไม่ต้องการ Location key
         for (DeathChestData data : activeChests.values()) {
             
             if (data != null) { 
-                // [FIX] ส่ง x, y, z, timeLeft, worldName จาก data object ไปตรงๆ
                 databaseManager.updateChestTime(data.x, data.y, data.z, data.timeLeft, data.worldName); 
             }
         }
     }
-    // ------------------------------
 
-    // --- [FIX] เพิ่ม Method ใหม่ ---
     public void cleanupEntitiesOnDisable() {
         if (activeChests.isEmpty()) {
             return;
@@ -376,7 +375,6 @@ public class DeathChestManager {
         activeChests.clear();
         playerChestMap.clear();
     }
-    // ------------------------------
 
     private Particle resolveParticle(String particleName, Particle fallback) {
         try {

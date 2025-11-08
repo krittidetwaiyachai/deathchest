@@ -16,10 +16,10 @@ public class DeathChestData {
     String locationString;
     int timeLeft;
     String worldName;
-    int x, y, z; // <-- [FIX] เพิ่ม x, y, z
+    int x, y, z;
+    long createdAt;
 
-    // [FIX] แก้ไข Constructor
-    public DeathChestData(UUID ownerUUID, String ownerName, Chest chest, TextDisplay hologramEntity, ItemStack[] items, int experience, String locationString, String worldName, int x, int y, int z) {
+    public DeathChestData(UUID ownerUUID, String ownerName, Chest chest, TextDisplay hologramEntity, ItemStack[] items, int experience, String locationString, String worldName, int x, int y, int z, long createdAt) {
         this.ownerUUID = ownerUUID;
         this.ownerName = ownerName;
         this.chest = chest;
@@ -29,8 +29,9 @@ public class DeathChestData {
         this.locationString = locationString;
         this.worldName = worldName;
         this.timeLeft = 0;
-        this.x = x; // <-- [FIX]
-        this.y = y; // <-- [FIX]
-        this.z = z; // <-- [FIX]
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.createdAt = createdAt;
     }
 }

@@ -49,7 +49,7 @@ public class DatabaseManager {
                 config.setPassword(configManager.getDbPassword());
             } else {
                 logger.log(LoggingService.LogLevel.ERROR, "Invalid database type '" + dbType + "' in config.yml. Disabling plugin.");
-                Bukkit.getPluginManager().disablePlugin(plugin); // <-- Error อยู่ตรงนี้
+                Bukkit.getPluginManager().disablePlugin(plugin); // [FIX] แก้บั๊ก (this -> plugin)
                 return;
             }
 
@@ -85,7 +85,8 @@ public class DatabaseManager {
                 "z INT NOT NULL, " +
                 "items_base64 TEXT NOT NULL, " +
                 "experience INT NOT NULL, " +
-                "remaining_seconds INT NOT NULL" + 
+                "remaining_seconds INT NOT NULL, " + 
+                "created_at BIGINT NOT NULL DEFAULT 0" + // [FIX] เพิ่มคอลัมน์เวลาที่สร้าง
                 ");";
         
         String activeChestIndex = "CREATE INDEX IF NOT EXISTS idx_active_chests_coords ON active_chests (world, x, y, z);";
@@ -121,14 +122,16 @@ public class DatabaseManager {
 
     public List<DatabaseChestData> loadAllActiveChests() {
         List<DatabaseChestData> chests = new ArrayList<>();
-        String sql = "SELECT owner_uuid, world, x, y, z, items_base64, experience, remaining_seconds FROM active_chests"; 
+        String sql = "SELECT owner_uuid, world, x, y, z, items_base64, experience, remaining_seconds, created_at FROM active_chests"; // [FIX]
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             
             while (rs.next()) {
                 int remainingSeconds = rs.getInt("remaining_seconds");
+                long createdAt = rs.getLong("created_at"); // [FIX]
                 
+                // [FIX] เรียก constructor ของ DatabaseChestData (ตัว DTO) ให้ถูกต้อง
                 chests.add(new DatabaseChestData(
                     rs.getString("owner_uuid"),
                     rs.getString("world"),
@@ -137,7 +140,8 @@ public class DatabaseManager {
                     rs.getInt("z"),
                     rs.getString("items_base64"),
                     rs.getInt("experience"),
-                    remainingSeconds 
+                    remainingSeconds,
+                    createdAt // [FIX]
                 ));
             }
         } catch (SQLException e) {
@@ -146,31 +150,30 @@ public class DatabaseManager {
         return chests;
     }
 
-    // --- [FIX] แก้ไข Method นี้ ---
-    public void saveActiveChest(DeathChestData data, int remainingTime) { 
-        String sql = "INSERT INTO active_chests (owner_uuid, world, x, y, z, items_base64, experience, remaining_seconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"; 
+    // [FIX] แก้ไข Method นี้
+    public void saveActiveChest(DeathChestData data, int remainingTime, long createdAt) { 
+        String sql = "INSERT INTO active_chests (owner_uuid, world, x, y, z, items_base64, experience, remaining_seconds, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"; // [FIX]
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             
             String itemsBase64 = SerializationUtils.itemStackArrayToBase64(data.items);
-            // Location loc = data.chest.getLocation(); // <-- [FIX] ลบทิ้ง ไม่ใช้ API
 
             ps.setString(1, data.ownerUUID.toString());
-            ps.setString(2, data.worldName); // <-- [FIX] ใช้ค่า primitive จาก data
-            ps.setInt(3, data.x); // <-- [FIX] ใช้ค่า primitive จาก data
-            ps.setInt(4, data.y); // <-- [FIX] ใช้ค่า primitive จาก data
-            ps.setInt(5, data.z); // <-- [FIX] ใช้ค่า primitive จาก data
+            ps.setString(2, data.worldName); // [FIX] ใช้ค่า primitive จาก data
+            ps.setInt(3, data.x); // [FIX] ใช้ค่า primitive จาก data
+            ps.setInt(4, data.y); // [FIX] ใช้ค่า primitive จาก data
+            ps.setInt(5, data.z); // [FIX] ใช้ค่า primitive จาก data
             ps.setString(6, itemsBase64);
             ps.setInt(7, data.experience);
             ps.setInt(8, remainingTime); 
+            ps.setLong(9, createdAt); // [FIX]
             ps.executeUpdate();
 
         } catch (Exception e) {
             logger.log(LoggingService.LogLevel.ERROR, "ไม่สามารถเซฟ Active Chest ลง DB: " + e.getMessage());
-            e.printStackTrace(); // เพิ่ม stacktrace
+            e.printStackTrace();
         }
     }
-    // ----------------------------------------------------
 
     public void deleteActiveChest(Location loc) {
         String sql = "DELETE FROM active_chests WHERE world = ? AND x = ? AND y = ? AND z = ?";
@@ -205,7 +208,7 @@ public class DatabaseManager {
             if (rowsAffected == 0) {
                  logger.log(LoggingService.LogLevel.WARN, String.format("UpdateChestTime ไม่พบแถวที่จะอัปเดต: W=%s, X=%d, Y=%d, Z=%d", worldName, x, y, z));
             } else {
-                 logger.log(LoggingService.LogLevel.INFO, String.format("UpdateChestTime อัปเดต %d แถว สำเร็จ", rowsAffected)); // เพิ่ม log ตอนสำเร็จ
+                 logger.log(LoggingService.LogLevel.INFO, String.format("UpdateChestTime อัปเดต %d แถว สำเร็จ", rowsAffected));
             }
 
         } catch (Exception e) { 
