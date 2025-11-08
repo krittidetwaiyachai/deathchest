@@ -65,7 +65,8 @@ public class DeathChestManager {
             }
         }
 
-        if (totalExp == 0 && validItems.isEmpty()) {
+        // [EDIT] แก้บัค: ถ้า XP เป็น 0 (หรือน้อยกว่า) และ ไม่มีของ ถึงจะไม่สร้าง
+        if (totalExp <= 0 && validItems.isEmpty()) {
             event.setDroppedExp(0);
             event.getDrops().clear();
             player.setTotalExperience(0);
@@ -185,6 +186,7 @@ public class DeathChestManager {
             playerChests.remove(loc);
         }
 
+        // [CHECK] ส่วนนี้ถูกต้องอยู่แล้ว (มันเก็บ XP ไป buyback ถ้า XP > 0)
         if (moveToBuyback && (data.items.length > 0 || data.experience > 0)) {
             DeathDataPackage dataPackage = new DeathDataPackage(data.items, data.experience);
             storageManager.addLostItems(data.ownerUUID, dataPackage);

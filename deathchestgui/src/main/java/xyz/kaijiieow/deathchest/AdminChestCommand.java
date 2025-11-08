@@ -11,10 +11,12 @@ public class AdminChestCommand implements CommandExecutor {
 
     private final GuiManager guiManager;
     private final ConfigManager configManager;
+    private final LoggingService logger; // [NEW]
 
-    public AdminChestCommand(GuiManager guiManager, ConfigManager configManager) {
+    public AdminChestCommand(GuiManager guiManager, ConfigManager configManager, LoggingService logger) { // [EDIT]
         this.guiManager = guiManager;
         this.configManager = configManager;
+        this.logger = logger; // [NEW]
     }
 
     @Override
@@ -37,6 +39,7 @@ public class AdminChestCommand implements CommandExecutor {
         }
 
         String targetName = args[0];
+        @SuppressWarnings("deprecation") // Bukkit.getOfflinePlayer(String) is deprecated
         OfflinePlayer targetPlayer = Bukkit.getOfflinePlayer(targetName);
 
         if (targetPlayer == null || !targetPlayer.hasPlayedBefore()) {
@@ -45,7 +48,8 @@ public class AdminChestCommand implements CommandExecutor {
                 .replace("%player%", targetName));
             return true;
         }
-
+        
+        logger.logAdminGuiOpen(admin, targetPlayer); // [NEW] Log a GUI open
         guiManager.openAdminChestGUI(admin, targetPlayer);
         return true;
     }

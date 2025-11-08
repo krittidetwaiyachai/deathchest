@@ -56,14 +56,16 @@ public class TeleportChestCommand implements CommandExecutor {
             }
         }
 
+        // [EDIT] Get list of chests
         List<Location> chestLocs = deathChestManager.getActiveChestLocations(player.getUniqueId());
 
-        if (chestLocs.isEmpty()) {
+        if (chestLocs == null || chestLocs.isEmpty()) {
             player.sendMessage(configManager.getChatMessageNoChestFound().replace("&", "§"));
             return true;
         }
         
-        Location chestLoc = chestLocs.get(chestLocs.size() - 1); // [EDIT] Get the most recent chest
+        // [EDIT] Get the most recent chest
+        Location chestLoc = chestLocs.get(chestLocs.size() - 1); 
 
         Location safeLoc = chestLoc.clone().add(0.5, 1.0, 0.5);
         player.teleport(safeLoc);

@@ -33,7 +33,6 @@ public class ChestProtectionListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
         if (isDeathChest(event.getBlock().getLocation())) {
-            // (ถ้าจะให้ OP ทุบได้ ต้องแก้ตรงนี้)
             event.setCancelled(true);
         }
     }
@@ -81,7 +80,6 @@ public class ChestProtectionListener implements Listener {
     // 6. [อัปเกรด] กัน Hopper (ทั้งบล็อก และ รถ) ดูด
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onHopperMove(InventoryMoveItemEvent event) {
-        // เช็คว่า "ต้นทาง" (Source) คือกล่องศพของเรารึเปล่า
         if (event.getSource().getLocation() != null && isDeathChest(event.getSource().getLocation())) {
             event.setCancelled(true);
         }

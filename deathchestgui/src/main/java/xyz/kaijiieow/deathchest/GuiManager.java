@@ -88,8 +88,10 @@ public class GuiManager {
             meta.setDisplayName("§cของที่หายไป (Set " + (i + 1) + ")");
             
             int totalItemCount = 0;
-            for(ItemStack it : dataPackage.getItems()) {
-                if(it != null) totalItemCount += it.getAmount();
+            if (dataPackage.getItems() != null) {
+                for(ItemStack it : dataPackage.getItems()) {
+                    if(it != null) totalItemCount += it.getAmount();
+                }
             }
             
             meta.setLore(Arrays.asList(
@@ -128,7 +130,7 @@ public class GuiManager {
         List<Location> chestLocations = plugin.getDeathChestManager().getActiveChestLocations(targetUUID);
         List<DeathDataPackage> buybackItems = storageManager.getLostItems(targetUUID);
 
-        int totalActiveChests = chestLocations.size();
+        int totalActiveChests = (chestLocations != null) ? chestLocations.size() : 0; // Fix NPE
         int totalBuybackItems = (buybackItems != null) ? buybackItems.size() : 0;
         int totalItems = totalActiveChests + totalBuybackItems;
 
@@ -258,10 +260,12 @@ public class GuiManager {
             admin.closeInventory();
             return;
         }
+        
+        OfflinePlayer targetPlayer = Bukkit.getOfflinePlayer(targetUUID); // Get target player for logging
 
         int index = (currentPage * ITEMS_PER_PAGE) + slot;
         List<Location> chestLocations = plugin.getDeathChestManager().getActiveChestLocations(targetUUID);
-        int totalActiveChests = chestLocations.size();
+        int totalActiveChests = (chestLocations != null) ? chestLocations.size() : 0;
 
         if (index < totalActiveChests) {
             // It's an active chest, teleport
@@ -272,13 +276,26 @@ public class GuiManager {
             }
 
             Location targetLoc = chestLocations.get(index);
+            // [LOGGING FIX] Get location string from data
+            DeathChestData data = plugin.getDeathChestManager().getActiveChestAt(targetLoc);
+            String locationString = (data != null) ? data.locationString : "N/A";
+
             Location safeLoc = targetLoc.clone().add(0.5, 1.0, 0.5);
             
             admin.teleport(safeLoc);
             admin.sendMessage(configManager.getChatMessageAdminTeleported().replace("&", "§"));
+            
+            // [LOGGING FIX] Log TP success
+            logger.logAdminTpSuccess(admin, targetPlayer, locationString);
+            
             admin.closeInventory();
         } else {
             // It's a buyback item, send message
+            int buybackIndex = index - totalActiveChests;
+            
+            // [LOGGING FIX] Log TP fail
+            logger.logAdminTpFailBuyback(admin, targetPlayer, buybackIndex);
+
             admin.sendMessage(configManager.getChatMessageAdminIsBuyback().replace("&", "§"));
             // Don't close inventory
         }
@@ -313,9 +330,11 @@ public class GuiManager {
             
             hookManager.withdrawMoney(player, cost);
             
-            for (ItemStack item : dataToGive.getItems()) {
-                if(item != null) {
-                    player.getInventory().addItem(item);
+            if (dataToGive.getItems() != null) {
+                for (ItemStack item : dataToGive.getItems()) {
+                    if(item != null) {
+                        player.getInventory().addItem(item);
+                    }
                 }
             }
             player.giveExp(dataToGive.getExperience()); 

@@ -1,3 +1,7 @@
+database:
+  type: "SQLITE"
+  filename: "storage.db"
+
 settings:
   despawn-timer: 20
   economy-provider: "VAULT"
