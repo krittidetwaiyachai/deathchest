@@ -69,10 +69,16 @@ public class DeathChestPlugin extends JavaPlugin {
         //     deathChestManager.cleanupAllChests();
         // }
         
-        // --- [FIX] เพิ่มตรงนี้ ---
+        // --- [FIX] แก้ไขลำดับการทำงานตรงนี้ ---
         if (deathChestManager != null && loggingService != null) {
+            
+            // 1. เซฟเวลาก่อน (สำคัญสุด)
             loggingService.log(LoggingService.LogLevel.INFO, "กำลังเซฟเวลาที่เหลือของกล่องศพ...");
             deathChestManager.saveAllChestTimes();
+            
+            // 2. ลบ entities (holograms) ทิ้ง
+            loggingService.log(LoggingService.LogLevel.INFO, "กำลังล้าง entities (holograms)...");
+            deathChestManager.cleanupEntitiesOnDisable(); // <--- [FIX] เพิ่มการลบ entity
         }
         // -------------------------
         

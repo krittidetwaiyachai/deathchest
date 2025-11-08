@@ -340,7 +340,7 @@ public class DeathChestManager {
         }
     }
 
-    // --- [FIX] เพิ่ม Method ใหม่ ---
+    // --- [FIX] แก้ไข Method นี้ ---
     public void saveAllChestTimes() {
         if (activeChests.isEmpty()) {
             return;
@@ -348,11 +348,29 @@ public class DeathChestManager {
         logger.log(LogLevel.INFO, "กำลังเซฟเวลาที่เหลือของ Active Chests " + activeChests.size() + " กล่อง...");
         for (Map.Entry<Location, DeathChestData> entry : activeChests.entrySet()) {
             DeathChestData data = entry.getValue();
-            if (data != null && data.hologramEntity != null && data.hologramEntity.isValid()) {
-                // เราใช้ data.timeLeft ที่ถูกอัปเดตตลอดเวลาโดย BukkitRunnable
+            // [FIX] ลบ hologram check (isValid) ออก, เราสนแค่ data.timeLeft
+            // เราเชื่อใจว่า data.timeLeft ถูกอัปเดตโดย BukkitRunnable มาตลอด
+            if (data != null) { 
                 databaseManager.updateChestTime(entry.getKey(), data.timeLeft);
             }
         }
+    }
+    // ------------------------------
+
+    // --- [FIX] เพิ่ม Method ใหม่ ---
+    public void cleanupEntitiesOnDisable() {
+        if (activeChests.isEmpty()) {
+            return;
+        }
+        logger.log(LogLevel.INFO, "กำลังลบ Holograms " + activeChests.size() + " อัน (ตอนปิดเซิร์ฟ)...");
+        for (DeathChestData data : activeChests.values()) {
+            if (data.hologramEntity != null && data.hologramEntity.isValid()) {
+                data.hologramEntity.remove();
+            }
+        }
+        // เคลียร์ activeChests map เพื่อป้องกัน memory leak ตอน reload
+        activeChests.clear();
+        playerChestMap.clear();
     }
     // ------------------------------
 
