@@ -272,7 +272,7 @@ public class DeathChestManager {
                 int seconds = timeLeft % 60;
                 
                 final String timeString = (minutes > 0)
-                    ? String.format("%d &fนาที %d", minutes, seconds)
+                    ? String.format("%d นาที %d", minutes, seconds)
                     : String.valueOf(timeLeft);
                 
 
