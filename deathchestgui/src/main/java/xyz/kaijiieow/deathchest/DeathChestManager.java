@@ -63,6 +63,20 @@ public class DeathChestManager {
                 Block block = loc.getBlock();
                 
                 if (block.getType() != Material.CHEST) {
+                    // ถ้ามันไม่ใช่กล่อง, เช็คว่ามันเป็น AIR หรือไม่
+                    if (block.getType() != Material.AIR) {
+                        // ถ้ามันไม่ใช่ AIR (เช่น เป็น STONE, GRASS, WATER, หรืออะไรก็ตามที่ขวางอยู่)
+                        logger.log(LogLevel.WARN, "ไม่สามารถวางกล่องศพที่ " + loc + " ได้เพราะมีบล็อก " + block.getType() + " ขวางอยู่ - ทำการลบจาก DB");
+                        databaseManager.deleteActiveChest(loc);
+                        continue;
+                    }
+                    
+                    // ถ้ามันเป็น AIR, ก็วางกล่องไปเลย
+                    block.setType(Material.CHEST);
+                    logger.log(LogLevel.INFO, "สร้างกล่องศพที่หายไปตอนรีเซิร์ฟ " + loc);
+                }
+
+                if (block.getType() != Material.CHEST) {
                     logger.log(LogLevel.WARN, "ไม่พบกล่องศพที่ " + loc + " (กลายเป็น " + block.getType() + ") - ทำการลบจาก DB");
                     databaseManager.deleteActiveChest(loc);
                     continue;
@@ -282,13 +296,5 @@ public class DeathChestManager {
         }
     }
 
-    public void cleanupAllChests() {
-        if (activeChests.isEmpty()) {
-            return;
-        }
-        logger.log(LoggingService.LogLevel.WARN, "กำลังล้างกล่องศพที่ค้างอยู่ " + activeChests.size() + " กล่อง (ก่อนปิดเซิร์ฟ)...");
-        for (Map.Entry<Location, DeathChestData> entry : new ArrayList<>(activeChests.entrySet())) {
-            removeChest(entry.getKey(), entry.getValue(), false);
-        }
-    }
+    
 }

@@ -26,15 +26,19 @@ public class DeathChestPlugin extends JavaPlugin {
             return;
         }
         
+        // [NEW] Initialize and connect DatabaseManager
         this.databaseManager = new DatabaseManager(this, configManager, loggingService);
+        // [FIX] ห่อ connect() ด้วย try-catch ไม่งั้นมันไม่ log error ตอน UnsatisfiedLinkError
         try {
             this.databaseManager.connect();
         } catch (Exception e) {
+            // Error นี้จะถูก log ไปแล้วใน connect() แต่เราต้องหยุด onEnable ไม่ให้ทำงานต่อ
             loggingService.log(LoggingService.LogLevel.ERROR, "!!! เกิดปัญหาหนักตอนเชื่อมต่อ Database ปลั๊กอินจะปิดตัวลง !!!");
-            e.printStackTrace(); 
+            e.printStackTrace(); // พิมพ์ stack trace เต็มๆ ให้เห็น
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
+
 
         // [FIX] ส่ง DatabaseManager กับ Logger เข้าไปดิ
         this.storageManager = new StorageManager(databaseManager, loggingService);
@@ -65,10 +69,13 @@ public class DeathChestPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (deathChestManager != null) {
-            deathChestManager.cleanupAllChests();
-        }
+        // [FIX] ลบการเรียก cleanupAllChests() ทิ้ง
+        // บรรทัดนี้คือตัวการที่ทำให้ของหายตอนรีเซิร์ฟ
+        // if (deathChestManager != null) {
+        //     deathChestManager.cleanupAllChests();
+        // }
         
+        // [NEW] Close database connection
         if (databaseManager != null) {
             databaseManager.close();
         }
@@ -88,5 +95,5 @@ public class DeathChestPlugin extends JavaPlugin {
     public DeathChestManager getDeathChestManager() { return deathChestManager; }
     public GuiManager getGuiManager() { return guiManager; }
     public LoggingService getLoggingService() { return loggingService; }
-    public DatabaseManager getDatabaseManager() { return databaseManager; } 
+    public DatabaseManager getDatabaseManager() { return databaseManager; } // [NEW]
 }
