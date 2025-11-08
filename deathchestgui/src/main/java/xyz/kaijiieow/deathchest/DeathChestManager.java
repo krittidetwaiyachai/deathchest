@@ -34,6 +34,10 @@ public class DeathChestManager {
 
     private final Map<Location, DeathChestData> activeChests = new HashMap<>();
     private final Map<UUID, List<Location>> playerChestMap = new HashMap<>(); 
+    // Resolve optional particles at runtime so the plugin stays compatible with older API versions.
+    private final Particle particleSoulFireFlame = resolveParticle("SOUL_FIRE_FLAME", Particle.FLAME);
+    private final Particle particleElectricSpark = resolveParticle("ELECTRIC_SPARK", Particle.FIREWORKS_SPARK);
+    private final Particle particleSculkSoul = resolveParticle("SCULK_SOUL", Particle.PORTAL);
 
     public DeathChestManager(DeathChestPlugin plugin, ConfigManager configManager, StorageManager storageManager, LoggingService logger, DatabaseManager databaseManager) { 
         this.plugin = plugin;
@@ -247,10 +251,12 @@ public class DeathChestManager {
                 try {
                     World world = loc.getWorld();
                     if (world != null) {
-                        // Particle แบบใหม่ (วิญญาณ + Totem + Glow)
-                        world.spawnParticle(Particle.SOUL, loc.clone().add(0.5, 0.5, 0.5), 5, 0.5, 0.5, 0.5, 0.02);
-                        world.spawnParticle(Particle.TOTEM, loc.clone().add(0.5, 1.0, 0.5), 1, 0.3, 0.5, 0.3, 0.1);
-                        world.spawnParticle(Particle.GLOW, loc.clone().add(0.5, 0.5, 0.5), 10, 0.5, 0.5, 0.5, 0.01);
+                        Location center = loc.clone().add(0.5, 0.5, 0.5);
+                        
+                        world.spawnParticle(particleSoulFireFlame, center, 10, 0.5, 0.5, 0.5, 0.02);
+                        world.spawnParticle(Particle.TOTEM, center.clone().add(0, 0.5, 0), 1, 0.3, 0.5, 0.3, 0.1);
+                        world.spawnParticle(particleElectricSpark, center, 5, 0.5, 0.5, 0.5, 0.05);
+                        world.spawnParticle(particleSculkSoul, center, 2, 0.5, 0.5, 0.5, 0.02);
                     }
                 } catch (Exception e) {
                     logger.log(LogLevel.WARN, "เกิดข้อผิดพลาดตอนสร้าง Particle (เวอร์ชั่นเซิร์ฟเวอร์อาจไม่รองรับ): " + e.getMessage());
@@ -266,7 +272,7 @@ public class DeathChestManager {
                 int seconds = timeLeft % 60;
                 
                 final String timeString = (minutes > 0)
-                    ? String.format("%d นาที %d", minutes, seconds)
+                    ? String.format("%d &fนาที %d", minutes, seconds)
                     : String.valueOf(timeLeft);
                 
 
@@ -326,6 +332,14 @@ public class DeathChestManager {
         logger.log(LoggingService.LogLevel.WARN, "กำลังล้างกล่องศพที่ค้างอยู่ " + activeChests.size() + " กล่อง (ก่อนปิดเซิร์ฟ)...");
         for (Map.Entry<Location, DeathChestData> entry : new ArrayList<>(activeChests.entrySet())) {
             removeChest(entry.getKey(), entry.getValue(), false);
+        }
+    }
+
+    private Particle resolveParticle(String particleName, Particle fallback) {
+        try {
+            return Particle.valueOf(particleName);
+        } catch (IllegalArgumentException ignored) {
+            return fallback;
         }
     }
 }

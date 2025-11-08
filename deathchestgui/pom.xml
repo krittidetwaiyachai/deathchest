@@ -13,14 +13,18 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- 1.21 ต้องใช้ Java 21 -->
         <maven.compiler.release>21</maven.compiler.release>
     </properties>
 
     <repositories>
+        <!-- ใช้ Spigot API จาก snapshot repo -->
         <repository>
-            <id>papermc-repo</id>
-            <url>https://repo.papermc.io/repository/maven-public/</url>
+            <id>spigot-repo</id>
+            <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
         </repository>
+
+        <!-- ที่เหลือคงไว้ตามเดิมสำหรับ lib อื่นๆ -->
         <repository>
             <id>nightexpress-releases</id>
             <url>https://repo.nightexpressdev.com/releases</url>
@@ -38,24 +42,29 @@
             <version>1.7</version>
             <scope>provided</scope>
         </dependency>
+
         <dependency>
             <groupId>com.zaxxer</groupId>
             <artifactId>HikariCP</artifactId>
             <version>5.1.0</version>
             <scope>compile</scope>
         </dependency>
+
         <dependency>
             <groupId>org.xerial</groupId>
             <artifactId>sqlite-jdbc</artifactId>
             <version>3.46.0.0</version>
             <scope>compile</scope>
         </dependency>
+
+        <!-- เปลี่ยนจาก Paper → Spigot -->
         <dependency>
-            <groupId>io.papermc.paper</groupId>
-            <artifactId>paper-api</artifactId>
+            <groupId>org.spigotmc</groupId>
+            <artifactId>spigot-api</artifactId>
             <version>1.21-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
+
         <dependency>
             <groupId>su.nightexpress.coinsengine</groupId>
             <artifactId>CoinsEngine</artifactId>
@@ -97,6 +106,7 @@
                     <release>${maven.compiler.release}</release>
                 </configuration>
             </plugin>
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
@@ -105,12 +115,14 @@
                     <finalName>${project.name}-${project.version}</finalName>
                 </configuration>
             </plugin>
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
                 <version>3.3.1</version>
             </plugin>
         </plugins>
+
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
