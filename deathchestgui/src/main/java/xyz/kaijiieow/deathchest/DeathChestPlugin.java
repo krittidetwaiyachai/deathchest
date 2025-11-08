@@ -26,40 +26,28 @@ public class DeathChestPlugin extends JavaPlugin {
             return;
         }
         
-        // [NEW] Initialize and connect DatabaseManager
         this.databaseManager = new DatabaseManager(this, configManager, loggingService);
-        // [FIX] ห่อ connect() ด้วย try-catch ไม่งั้นมันไม่ log error ตอน UnsatisfiedLinkError
         try {
             this.databaseManager.connect();
         } catch (Exception e) {
-            // Error นี้จะถูก log ไปแล้วใน connect() แต่เราต้องหยุด onEnable ไม่ให้ทำงานต่อ
             loggingService.log(LoggingService.LogLevel.ERROR, "!!! เกิดปัญหาหนักตอนเชื่อมต่อ Database ปลั๊กอินจะปิดตัวลง !!!");
-            e.printStackTrace(); // พิมพ์ stack trace เต็มๆ ให้เห็น
+            e.printStackTrace(); 
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
 
-
-        // [FIX] ส่ง DatabaseManager กับ Logger เข้าไปดิ
         this.storageManager = new StorageManager(databaseManager, loggingService);
-
-        // [FIX] ส่ง DatabaseManager เข้าไปด้วย
         this.deathChestManager = new DeathChestManager(this, configManager, storageManager, loggingService, databaseManager);
-        
         this.guiManager = new GuiManager(this, configManager, hookManager, storageManager, loggingService);
         
-        // --- [FIX] สั่งโหลดข้อมูลจาก DB ตอนเปิดเซิร์ฟ ---
         this.storageManager.loadBuybackItemsFromDatabase();
         this.deathChestManager.loadActiveChestsFromDatabase();
-        // -------------------------------------------
 
-        // --- ลงทะเบียน Listeners ---
         getServer().getPluginManager().registerEvents(new DeathListener(deathChestManager), this);
         getServer().getPluginManager().registerEvents(new GuiListener(guiManager), this);
         getServer().getPluginManager().registerEvents(new ChestInteractListener(this, deathChestManager, configManager), this);
         getServer().getPluginManager().registerEvents(new ChestProtectionListener(deathChestManager), this); 
         
-        // --- ลงทะเบียน Commands ---
         getCommand("buyback").setExecutor(new BuybackCommand(guiManager));
         getCommand("tpchest").setExecutor(new TeleportChestCommand(deathChestManager, configManager)); 
         getCommand("dctp").setExecutor(new AdminChestCommand(guiManager, configManager, loggingService)); 
@@ -69,13 +57,12 @@ public class DeathChestPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        // [FIX] ลบการเรียก cleanupAllChests() ทิ้ง
-        // บรรทัดนี้คือตัวการที่ทำให้ของหายตอนรีเซิร์ฟ
+        
+        // [FIX] ลบไอ้บรรทัดนี้ทิ้งไปซะ มันคือตัวการที่ทำให้ของมึงหายตอนรีเซิร์ฟ
         // if (deathChestManager != null) {
         //     deathChestManager.cleanupAllChests();
         // }
         
-        // [NEW] Close database connection
         if (databaseManager != null) {
             databaseManager.close();
         }
@@ -95,5 +82,5 @@ public class DeathChestPlugin extends JavaPlugin {
     public DeathChestManager getDeathChestManager() { return deathChestManager; }
     public GuiManager getGuiManager() { return guiManager; }
     public LoggingService getLoggingService() { return loggingService; }
-    public DatabaseManager getDatabaseManager() { return databaseManager; } // [NEW]
+    public DatabaseManager getDatabaseManager() { return databaseManager; } 
 }

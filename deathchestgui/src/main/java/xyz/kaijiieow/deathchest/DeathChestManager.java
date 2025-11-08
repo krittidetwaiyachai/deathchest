@@ -29,21 +29,19 @@ public class DeathChestManager {
     private final ConfigManager configManager;
     private final StorageManager storageManager;
     private final LoggingService logger;
-    private final DatabaseManager databaseManager; // [NEW]
+    private final DatabaseManager databaseManager;
 
     private final Map<Location, DeathChestData> activeChests = new HashMap<>();
     private final Map<UUID, List<Location>> playerChestMap = new HashMap<>(); 
 
-    // [FIX] Constructor ต้องรับ DatabaseManager
     public DeathChestManager(DeathChestPlugin plugin, ConfigManager configManager, StorageManager storageManager, LoggingService logger, DatabaseManager databaseManager) { 
         this.plugin = plugin;
         this.configManager = configManager;
         this.storageManager = storageManager;
         this.logger = logger;
-        this.databaseManager = databaseManager; // [NEW]
+        this.databaseManager = databaseManager;
     }
     
-    // [NEW] Load active chests from DB on startup
     public void loadActiveChestsFromDatabase() {
         List<DatabaseChestData> dbChests = databaseManager.loadAllActiveChests();
         if (dbChests.isEmpty()) {
@@ -62,26 +60,28 @@ public class DeathChestManager {
                 Location loc = new Location(world, dbChest.x, dbChest.y, dbChest.z);
                 Block block = loc.getBlock();
                 
+                // [FIX] ตรรกะใหม่ที่ถูกต้อง
                 if (block.getType() != Material.CHEST) {
-                    // ถ้ามันไม่ใช่กล่อง, เช็คว่ามันเป็น AIR หรือไม่
-                    if (block.getType() != Material.AIR) {
-                        // ถ้ามันไม่ใช่ AIR (เช่น เป็น STONE, GRASS, WATER, หรืออะไรก็ตามที่ขวางอยู่)
+                    // ถ้ามันไม่ใช่กล่อง, เช็คว่ามันเป็น AIR หรือบล็อกที่ทับได้ (เช่น หญ้าสูง)
+                    if (block.getType() != Material.AIR && !block.isPassable()) {
+                        // ถ้ามันไม่ใช่ AIR และเป็นบล็อกทึบ/ขวาง (เช่น STONE)
                         logger.log(LogLevel.WARN, "ไม่สามารถวางกล่องศพที่ " + loc + " ได้เพราะมีบล็อก " + block.getType() + " ขวางอยู่ - ทำการลบจาก DB");
                         databaseManager.deleteActiveChest(loc);
                         continue;
                     }
                     
-                    // ถ้ามันเป็น AIR, ก็วางกล่องไปเลย
+                    // ถ้ามันเป็น AIR หรือ บล็อกทับได้ (GRASS, WATER) ก็วางกล่องไปเลย
                     block.setType(Material.CHEST);
                     logger.log(LogLevel.INFO, "สร้างกล่องศพที่หายไปตอนรีเซิร์ฟ " + loc);
                 }
-
+                
+                // เช็คซ้ำอีกที เผื่อว่าการ setType มันล้มเหลว (เช่น โดน WorldGuard บล็อค)
                 if (block.getType() != Material.CHEST) {
-                    logger.log(LogLevel.WARN, "ไม่พบกล่องศพที่ " + loc + " (กลายเป็น " + block.getType() + ") - ทำการลบจาก DB");
-                    databaseManager.deleteActiveChest(loc);
-                    continue;
+                     logger.log(LogLevel.ERROR, "พยายามวางกล่องที่ " + loc + " แต่ล้มเหลว! (อาจถูกปลั๊กอินอื่นบล็อค) - ทำการลบจาก DB");
+                     databaseManager.deleteActiveChest(loc);
+                     continue;
                 }
-
+                
                 Chest chest = (Chest) block.getState();
                 ItemStack[] items = SerializationUtils.itemStackArrayFromBase64(dbChest.itemsBase64);
                 UUID ownerUuid = UUID.fromString(dbChest.ownerUuid);
@@ -212,7 +212,6 @@ public class DeathChestManager {
 
         startDespawnTimer(blockLoc, data);
         
-        // [FIX] สั่งเซฟลง DB ด้วย
         databaseManager.saveActiveChest(data);
 
         player.sendMessage(configManager.getChatMessageDeath()
@@ -262,7 +261,6 @@ public class DeathChestManager {
     }
 
     public void removeChest(Location loc, DeathChestData data, boolean moveToBuyback) {
-        // [FIX] สั่งลบจาก DB
         databaseManager.deleteActiveChest(loc);
         
         if (data.hologramEntity != null && data.hologramEntity.isValid()) {
@@ -281,7 +279,6 @@ public class DeathChestManager {
         }
 
         if (moveToBuyback && (data.items.length > 0 || data.experience > 0)) {
-            // [FIX] เรียกใช้ StorageManager ให้มันไปเซฟลง DB
             storageManager.addBuybackItem(data.ownerUUID, data.items, data.experience);
             
             logger.logChestExpired(data.ownerName, data.locationString, data.experience);
@@ -296,5 +293,13 @@ public class DeathChestManager {
         }
     }
 
-    
+    public void cleanupAllChests() {
+        if (activeChests.isEmpty()) {
+            return;
+        }
+        logger.log(LoggingService.LogLevel.WARN, "กำลังล้างกล่องศพที่ค้างอยู่ " + activeChests.size() + " กล่อง (ก่อนปิดเซิร์ฟ)...");
+        for (Map.Entry<Location, DeathChestData> entry : new ArrayList<>(activeChests.entrySet())) {
+            removeChest(entry.getKey(), entry.getValue(), false);
+        }
+    }
 }
