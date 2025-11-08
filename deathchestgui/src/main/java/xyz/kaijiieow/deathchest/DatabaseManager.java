@@ -98,18 +98,24 @@ public class DatabaseManager {
         
         String activeChestIndex = "CREATE INDEX IF NOT EXISTS idx_active_chests_coords ON active_chests (world, x, y, z);";
 
+        // [FIX] เปลี่ยนมาใช้ Statement ธรรมดา แล้ว execute ทีละคำสั่ง
+        // ปัญหาเดิมคือ PreparedStatement มันถูก "เตรียม" พร้อมกัน
+        // ทำให้คำสั่ง CREATE INDEX มันเช็คหา table ที่ยังไม่ถูกสร้าง
         try (Connection conn = getConnection();
-             PreparedStatement ps1 = conn.prepareStatement(buybackTable);
-             PreparedStatement ps2 = conn.prepareStatement(activeChestTable);
-             PreparedStatement ps3 = conn.prepareStatement(activeChestIndex)) {
+             Statement stmt = conn.createStatement()) {
             
-            ps1.execute();
-            ps2.execute();
-            ps3.execute(); // Create the index
+            // สร้างตารางก่อน
+            stmt.execute(buybackTable);
+            stmt.execute(activeChestTable);
+            
+            // ค่อยสร้าง Index ทีหลัง
+            stmt.execute(activeChestIndex); 
+
             logger.log(LoggingService.LogLevel.INFO, "ตรวจสอบ/สร้างตาราง Database เรียบร้อย");
 
         } catch (SQLException e) {
             logger.log(LoggingService.LogLevel.ERROR, "ไม่สามารถสร้างตาราง Database ได้: " + e.getMessage());
+            e.printStackTrace(); // [DEBUG] พิมพ์ Error ให้หมด
         }
     }
 
