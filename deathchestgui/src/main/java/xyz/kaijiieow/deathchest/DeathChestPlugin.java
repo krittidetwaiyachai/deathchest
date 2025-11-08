@@ -10,7 +10,7 @@ public class DeathChestPlugin extends JavaPlugin {
     private DeathChestManager deathChestManager;
     private GuiManager guiManager;
     private LoggingService loggingService;
-    private DatabaseManager databaseManager; // [NEW]
+    private DatabaseManager databaseManager; 
 
     @Override
     public void onEnable() {
@@ -26,24 +26,30 @@ public class DeathChestPlugin extends JavaPlugin {
             return;
         }
         
-        // [NEW] Initialize and connect DatabaseManager
         this.databaseManager = new DatabaseManager(this, configManager, loggingService);
-        // [FIX] ห่อ connect() ด้วย try-catch ไม่งั้นมันไม่ log error ตอน UnsatisfiedLinkError
         try {
             this.databaseManager.connect();
         } catch (Exception e) {
-            // Error นี้จะถูก log ไปแล้วใน connect() แต่เราต้องหยุด onEnable ไม่ให้ทำงานต่อ
             loggingService.log(LoggingService.LogLevel.ERROR, "!!! เกิดปัญหาหนักตอนเชื่อมต่อ Database ปลั๊กอินจะปิดตัวลง !!!");
-            e.printStackTrace(); // พิมพ์ stack trace เต็มๆ ให้เห็น
+            e.printStackTrace(); 
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
 
+        // [MODIFIED] Pass DB manager to StorageManager
+        this.storageManager = new StorageManager(databaseManager, loggingService);
 
-        this.storageManager = new StorageManager();
-
-        this.deathChestManager = new DeathChestManager(this, configManager, storageManager, loggingService);
+        // [MODIFIED] Pass DB manager to DeathChestManager
+        this.deathChestManager = new DeathChestManager(this, configManager, storageManager, loggingService, databaseManager);
+        
+        // [MODIFIED] Pass DB manager to GuiManager (though not strictly needed yet, good practice)
         this.guiManager = new GuiManager(this, configManager, hookManager, storageManager, loggingService);
+        
+        // --- [NEW] Load data from DB ---
+        // ต้องโหลด Buyback ก่อน เพราะ ChestManager อาจจะย้ายของไป Buyback
+        this.storageManager.loadBuybackItemsFromDatabase();
+        this.deathChestManager.loadActiveChestsFromDatabase();
+        // -----------------------------
 
         // --- ลงทะเบียน Listeners ---
         getServer().getPluginManager().registerEvents(new DeathListener(deathChestManager), this);
@@ -65,17 +71,13 @@ public class DeathChestPlugin extends JavaPlugin {
             deathChestManager.cleanupAllChests();
         }
         
-        // [NEW] Close database connection
         if (databaseManager != null) {
             databaseManager.close();
         }
         
         if (loggingService != null) {
-            // [FIX] เปลี่ยนเป็น getLogger().info ธรรมดา
-            // เพื่อป้องกัน Error ตอนที่ปลั๊กอินถูก disable ไปแล้ว
-            // (loggingService.log() มันจะไปเรียก async task ซึ่งทำไม่ได้)
             getLogger().info("DeathChestGUI ปิดการใช้งาน");
-            loggingService.close(); // ปิด file logger (อันนี้ปลอดภัย)
+            loggingService.close(); 
         } else {
             getLogger().info("DeathChestGUI ปิดการใช้งาน");
         }
@@ -88,5 +90,5 @@ public class DeathChestPlugin extends JavaPlugin {
     public DeathChestManager getDeathChestManager() { return deathChestManager; }
     public GuiManager getGuiManager() { return guiManager; }
     public LoggingService getLoggingService() { return loggingService; }
-    public DatabaseManager getDatabaseManager() { return databaseManager; } // [NEW]
+    public DatabaseManager getDatabaseManager() { return databaseManager; } 
 }

@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.Chest;
 import org.bukkit.entity.Display;
@@ -28,27 +29,99 @@ public class DeathChestManager {
     private final ConfigManager configManager;
     private final StorageManager storageManager;
     private final LoggingService logger;
+    private final DatabaseManager databaseManager; // [NEW]
 
     private final Map<Location, DeathChestData> activeChests = new HashMap<>();
     private final Map<UUID, List<Location>> playerChestMap = new HashMap<>(); 
 
-    public DeathChestManager(DeathChestPlugin plugin, ConfigManager configManager, StorageManager storageManager, LoggingService logger) {
+    public DeathChestManager(DeathChestPlugin plugin, ConfigManager configManager, StorageManager storageManager, LoggingService logger, DatabaseManager databaseManager) { // [MODIFIED]
         this.plugin = plugin;
         this.configManager = configManager;
         this.storageManager = storageManager;
         this.logger = logger;
+        this.databaseManager = databaseManager; // [NEW]
     }
+    
+    // [NEW] Load active chests from DB on startup
+    public void loadActiveChestsFromDatabase() {
+        List<DatabaseManager.DatabaseChestData> dbChests = databaseManager.loadAllActiveChests();
+        if (dbChests.isEmpty()) {
+            return;
+        }
+
+        int count = 0;
+        for (DatabaseManager.DatabaseChestData dbChest : dbChests) {
+            try {
+                World world = Bukkit.getWorld(dbChest.world);
+                if (world == null) {
+                    logger.log(LogLevel.WARN, "ไม่พบโลกชื่อ '" + dbChest.world + "' ตอนโหลด Active Chest");
+                    continue;
+                }
+
+                Location loc = new Location(world, dbChest.x, dbChest.y, dbChest.z);
+                Block block = loc.getBlock();
+                
+                if (block.getType() != Material.CHEST) {
+                    logger.log(LogLevel.WARN, "ไม่พบกล่องศพที่ " + loc + " (กลายเป็น " + block.getType() + ") - ทำการลบจาก DB");
+                    databaseManager.deleteActiveChest(loc);
+                    continue;
+                }
+
+                Chest chest = (Chest) block.getState();
+                ItemStack[] items = SerializationUtils.itemStackArrayFromBase64(dbChest.itemsBase64);
+                UUID ownerUuid = UUID.fromString(dbChest.ownerUuid);
+                Player owner = Bukkit.getPlayer(ownerUuid);
+                String ownerName = (owner != null) ? owner.getName() : Bukkit.getOfflinePlayer(ownerUuid).getName();
+                
+                String locationStr = String.format("%d, %d, %d", loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
+                Location hologramLoc = loc.clone().add(0.5, configManager.getHologramYOffset(), 0.5);
+
+                TextDisplay hologram = world.spawn(hologramLoc, TextDisplay.class, (holo) -> {
+                    holo.setGravity(false);
+                    holo.setPersistent(false);
+                    holo.setInvulnerable(true);
+                    holo.setBrightness(new Display.Brightness(15, 15));
+                    holo.setAlignment(TextDisplay.TextAlignment.CENTER); 
+                    holo.setBillboard(Display.Billboard.CENTER);
+                });
+                
+                DeathChestData data = new DeathChestData(
+                    ownerUuid,
+                    ownerName,
+                    chest,
+                    hologram,
+                    items,
+                    dbChest.experience,
+                    locationStr
+                );
+
+                activeChests.put(loc, data);
+                playerChestMap.putIfAbsent(ownerUuid, new ArrayList<>());
+                playerChestMap.get(ownerUuid).add(loc);
+
+                startDespawnTimer(loc, data);
+                count++;
+            } catch (Exception e) {
+                logger.log(LogLevel.ERROR, "ไม่สามารถโหลด Active Chest: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+        logger.log(LogLevel.INFO, "โหลด Active Chests " + count + " กล่อง จาก Database");
+    }
+
 
     public DeathChestData getActiveChestAt(Location loc) {
         Location blockLoc = new Location(loc.getWorld(), loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
         return activeChests.get(blockLoc);
     }
 
+    // ... (existing getActiveChestLocations) ...
     public List<Location> getActiveChestLocations(UUID playerId) {
         return playerChestMap.getOrDefault(playerId, new ArrayList<>());
     }
 
     public void createDeathChest(PlayerDeathEvent event) {
+        // ... (existing code from line 81 to 157) ...
         Player player = event.getEntity();
         Location deathLoc = player.getLocation();
 
@@ -65,7 +138,6 @@ public class DeathChestManager {
             }
         }
 
-        // [EDIT] แก้บัค: ถ้า XP เป็น 0 (หรือน้อยกว่า) และ ไม่มีของ ถึงจะไม่สร้าง
         if (totalExp <= 0 && validItems.isEmpty()) {
             event.setDroppedExp(0);
             event.getDrops().clear();
@@ -123,6 +195,9 @@ public class DeathChestManager {
         playerChestMap.get(player.getUniqueId()).add(blockLoc); 
 
         startDespawnTimer(blockLoc, data);
+        
+        // [NEW] Save to database
+        databaseManager.saveActiveChest(data);
 
         player.sendMessage(configManager.getChatMessageDeath()
             .replace("&", "§")
@@ -133,6 +208,7 @@ public class DeathChestManager {
         logger.logDeath(player, locationStr, totalExp);
     }
 
+    // ... (existing startDespawnTimer) ...
     private void startDespawnTimer(Location loc, DeathChestData data) {
         new BukkitRunnable() {
             int timeLeft = configManager.getDespawnTime();
@@ -171,6 +247,9 @@ public class DeathChestManager {
     }
 
     public void removeChest(Location loc, DeathChestData data, boolean moveToBuyback) {
+        // [NEW] Delete from DB first
+        databaseManager.deleteActiveChest(loc);
+        
         if (data.hologramEntity != null && data.hologramEntity.isValid()) {
             data.hologramEntity.remove();
         }
@@ -186,10 +265,9 @@ public class DeathChestManager {
             playerChests.remove(loc);
         }
 
-        // [CHECK] ส่วนนี้ถูกต้องอยู่แล้ว (มันเก็บ XP ไป buyback ถ้า XP > 0)
         if (moveToBuyback && (data.items.length > 0 || data.experience > 0)) {
-            DeathDataPackage dataPackage = new DeathDataPackage(data.items, data.experience);
-            storageManager.addLostItems(data.ownerUUID, dataPackage);
+            // [MODIFIED] Call the new StorageManager method
+            storageManager.addBuybackItem(data.ownerUUID, data.items, data.experience);
             
             logger.logChestExpired(data.ownerName, data.locationString, data.experience);
 
@@ -200,6 +278,7 @@ public class DeathChestManager {
         } else if (moveToBuyback) {
             logger.log(LogLevel.INFO, "ลบกล่องศพหมดอายุ (แต่ว่างเปล่า) ของ: " + data.ownerName);
         } else {
+            // This 'else' branch is hit by cleanupAllChests, no log needed
         }
     }
 
