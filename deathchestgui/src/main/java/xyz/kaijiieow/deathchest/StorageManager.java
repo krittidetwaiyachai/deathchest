@@ -8,6 +8,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+// [FIX] เพิ่ม import ของคลาสใหม่
+import xyz.kaijiieow.deathchest.DatabaseBuybackData;
+
 public class StorageManager {
 
     private final Map<UUID, List<DeathDataPackage>> lostItemsStorage = new HashMap<>();
@@ -22,13 +25,15 @@ public class StorageManager {
 
     // [NEW] Load all data from DB on startup
     public void loadBuybackItemsFromDatabase() {
-        List<DatabaseManager.DatabaseBuybackData> dbItems = databaseManager.loadAllBuybackItems();
+        // [FIX] แก้ Type จาก DatabaseManager.DatabaseBuybackData เป็น DatabaseBuybackData
+        List<DatabaseBuybackData> dbItems = databaseManager.loadAllBuybackItems();
         if (dbItems.isEmpty()) {
             return;
         }
 
         int count = 0;
-        for (DatabaseManager.DatabaseBuybackData dbData : dbItems) {
+        // [FIX] แก้ Type จาก DatabaseManager.DatabaseBuybackData เป็น DatabaseBuybackData
+        for (DatabaseBuybackData dbData : dbItems) {
             try {
                 UUID ownerUuid = UUID.fromString(dbData.ownerUuid);
                 ItemStack[] items = SerializationUtils.itemStackArrayFromBase64(dbData.itemsBase64);

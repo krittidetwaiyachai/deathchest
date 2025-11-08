@@ -23,6 +23,10 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+// [FIX] เพิ่ม import ของคลาสใหม่
+import xyz.kaijiieow.deathchest.DatabaseChestData; 
+
+
 public class DeathChestManager {
 
     private final DeathChestPlugin plugin;
@@ -44,13 +48,15 @@ public class DeathChestManager {
     
     // [NEW] Load active chests from DB on startup
     public void loadActiveChestsFromDatabase() {
-        List<DatabaseManager.DatabaseChestData> dbChests = databaseManager.loadAllActiveChests();
+        // [FIX] แก้ Type จาก DatabaseManager.DatabaseChestData เป็น DatabaseChestData
+        List<DatabaseChestData> dbChests = databaseManager.loadAllActiveChests();
         if (dbChests.isEmpty()) {
             return;
         }
 
         int count = 0;
-        for (DatabaseManager.DatabaseChestData dbChest : dbChests) {
+        // [FIX] แก้ Type จาก DatabaseManager.DatabaseChestData เป็น DatabaseChestData
+        for (DatabaseChestData dbChest : dbChests) {
             try {
                 World world = Bukkit.getWorld(dbChest.world);
                 if (world == null) {
@@ -70,9 +76,14 @@ public class DeathChestManager {
                 Chest chest = (Chest) block.getState();
                 ItemStack[] items = SerializationUtils.itemStackArrayFromBase64(dbChest.itemsBase64);
                 UUID ownerUuid = UUID.fromString(dbChest.ownerUuid);
-                Player owner = Bukkit.getPlayer(ownerUuid);
-                String ownerName = (owner != null) ? owner.getName() : Bukkit.getOfflinePlayer(ownerUuid).getName();
                 
+                // [FIX] แก้การดึงชื่อ OfflinePlayer
+                String ownerName = Bukkit.getOfflinePlayer(ownerUuid).getName();
+                if (ownerName == null) {
+                    // ถ้า Player ไม่เคย join เลย (ซึ่งไม่ควรเกิด) ก็ใช้ UUID ไปก่อน
+                    ownerName = ownerUuid.toString();
+                }
+
                 String locationStr = String.format("%d, %d, %d", loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
                 Location hologramLoc = loc.clone().add(0.5, configManager.getHologramYOffset(), 0.5);
 

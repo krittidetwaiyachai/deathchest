@@ -3,11 +3,18 @@ package xyz.kaijiieow.deathchest;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.inventory.ItemStack;
 
 import java.io.File;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 public class DatabaseManager {
 
@@ -15,6 +22,10 @@ public class DatabaseManager {
     private final ConfigManager configManager;
     private final LoggingService logger;
     private HikariDataSource dataSource;
+
+    // [FIX] ลบ Inner class DatabaseChestData ทิ้ง (ย้ายไปไฟล์ใหม่)
+    // [FIX] ลบ Inner class DatabaseBuybackData ทิ้ง (ย้ายไปไฟล์ใหม่)
+
 
     public DatabaseManager(DeathChestPlugin plugin, ConfigManager configManager, LoggingService logger) {
         this.plugin = plugin;
@@ -55,11 +66,13 @@ public class DatabaseManager {
 
         } catch (Exception e) {
             logger.log(LoggingService.LogLevel.ERROR, "เชื่อมต่อ Database ไม่สำเร็จ! " + e.getMessage());
-            Bukkit.getPluginManager().disablePlugin(plugin);
+            // [FIX] Throw exception to stop plugin load
+            throw new RuntimeException("Failed to connect to database", e);
         }
     }
 
     private void createTables() {
+        // ... (existing createTables code) ...
         // ตารางสำหรับของใน /buyback
         String buybackTable = "CREATE TABLE IF NOT EXISTS buyback_items (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -70,6 +83,7 @@ public class DatabaseManager {
                 ");";
 
         // ตารางสำหรับกล่องที่ยัง Active (ยังไม่หมดเวลา)
+        // [FIX] Added INDEX for faster lookups and deletes
         String activeChestTable = "CREATE TABLE IF NOT EXISTS active_chests (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "owner_uuid VARCHAR(36) NOT NULL, " +
@@ -81,13 +95,17 @@ public class DatabaseManager {
                 "experience INT NOT NULL, " +
                 "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
                 ");";
+        
+        String activeChestIndex = "CREATE INDEX IF NOT EXISTS idx_active_chests_coords ON active_chests (world, x, y, z);";
 
         try (Connection conn = getConnection();
              PreparedStatement ps1 = conn.prepareStatement(buybackTable);
-             PreparedStatement ps2 = conn.prepareStatement(activeChestTable)) {
+             PreparedStatement ps2 = conn.prepareStatement(activeChestTable);
+             PreparedStatement ps3 = conn.prepareStatement(activeChestIndex)) {
             
             ps1.execute();
             ps2.execute();
+            ps3.execute(); // Create the index
             logger.log(LoggingService.LogLevel.INFO, "ตรวจสอบ/สร้างตาราง Database เรียบร้อย");
 
         } catch (SQLException e) {
@@ -106,6 +124,130 @@ public class DatabaseManager {
         if (dataSource != null && !dataSource.isClosed()) {
             dataSource.close();
             logger.log(LoggingService.LogLevel.INFO, "ปิดการเชื่อมต่อ Database pool");
+        }
+    }
+
+    // --- [NEW] CRUD Methods ---
+
+    public List<DatabaseChestData> loadAllActiveChests() {
+        List<DatabaseChestData> chests = new ArrayList<>();
+        String sql = "SELECT owner_uuid, world, x, y, z, items_base64, experience FROM active_chests";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            
+            while (rs.next()) {
+                // [FIX] ใช้คลาสใหม่ที่ย้ายออกมา
+                chests.add(new DatabaseChestData(
+                    rs.getString("owner_uuid"),
+                    rs.getString("world"),
+                    rs.getInt("x"),
+                    rs.getInt("y"),
+                    rs.getInt("z"),
+                    rs.getString("items_base64"),
+                    rs.getInt("experience")
+                ));
+            }
+        } catch (SQLException e) {
+            logger.log(LoggingService.LogLevel.ERROR, "ไม่สามารถโหลด Active Chests จาก DB: " + e.getMessage());
+        }
+        return chests;
+    }
+
+    public void saveActiveChest(DeathChestData data) {
+        String sql = "INSERT INTO active_chests (owner_uuid, world, x, y, z, items_base64, experience) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            
+            String itemsBase64 = SerializationUtils.itemStackArrayToBase64(data.items);
+            Location loc = data.chest.getLocation();
+
+            ps.setString(1, data.ownerUUID.toString());
+            ps.setString(2, loc.getWorld().getName());
+            ps.setInt(3, loc.getBlockX());
+            ps.setInt(4, loc.getBlockY());
+            ps.setInt(5, loc.getBlockZ());
+            ps.setString(6, itemsBase64);
+            ps.setInt(7, data.experience);
+            ps.executeUpdate();
+
+        } catch (Exception e) {
+            logger.log(LoggingService.LogLevel.ERROR, "ไม่สามารถเซฟ Active Chest ลง DB: " + e.getMessage());
+        }
+    }
+
+    public void deleteActiveChest(Location loc) {
+        String sql = "DELETE FROM active_chests WHERE world = ? AND x = ? AND y = ? AND z = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            
+            ps.setString(1, loc.getWorld().getName());
+            ps.setInt(2, loc.getBlockX());
+            ps.setInt(3, loc.getBlockY());
+            ps.setInt(4, loc.getBlockZ());
+            ps.executeUpdate();
+
+        } catch (SQLException e) {
+            logger.log(LoggingService.LogLevel.ERROR, "ไม่สามารถลบ Active Chest ออกจาก DB: " + e.getMessage());
+        }
+    }
+
+    public List<DatabaseBuybackData> loadAllBuybackItems() {
+        List<DatabaseBuybackData> items = new ArrayList<>();
+        String sql = "SELECT id, owner_uuid, items_base64, experience FROM buyback_items";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            
+            while (rs.next()) {
+                // [FIX] ใช้คลาสใหม่ที่ย้ายออกมา
+                items.add(new DatabaseBuybackData(
+                    rs.getLong("id"),
+                    rs.getString("owner_uuid"),
+                    rs.getString("items_base64"),
+                    rs.getInt("experience")
+                ));
+            }
+        } catch (SQLException e) {
+            logger.log(LoggingService.LogLevel.ERROR, "ไม่สามารถโหลด Buyback Items จาก DB: " + e.getMessage());
+        }
+        return items;
+    }
+
+    public long saveBuybackItem(UUID ownerUuid, ItemStack[] items, int experience) {
+        String sql = "INSERT INTO buyback_items (owner_uuid, items_base64, experience) VALUES (?, ?, ?)";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            
+            String itemsBase64 = SerializationUtils.itemStackArrayToBase64(items);
+            
+            ps.setString(1, ownerUuid.toString());
+            ps.setString(2, itemsBase64);
+            ps.setInt(3, experience);
+            ps.executeUpdate();
+
+            try (ResultSet rs = ps.getGeneratedKeys()) {
+                if (rs.next()) {
+                    return rs.getLong(1);
+                }
+            }
+
+        } catch (Exception e) {
+            logger.log(LoggingService.LogLevel.ERROR, "ไม่สามารถเซฟ Buyback Item ลง DB: " + e.getMessage());
+        }
+        return -1;
+    }
+
+    public void deleteBuybackItem(long databaseId) {
+        String sql = "DELETE FROM buyback_items WHERE id = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            
+            ps.setLong(1, databaseId);
+            ps.executeUpdate();
+
+        } catch (SQLException e) {
+            logger.log(LoggingService.LogLevel.ERROR, "ไม่สามารถลบ Buyback Item ออกจาก DB: " + e.getMessage());
         }
     }
 }
