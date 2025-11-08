@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.Chest;
@@ -96,6 +97,8 @@ public class DeathChestManager {
                     holo.setBrightness(new Display.Brightness(15, 15));
                     holo.setAlignment(TextDisplay.TextAlignment.CENTER); 
                     holo.setBillboard(Display.Billboard.CENTER);
+                    holo.setGlowing(true);
+                    holo.setGlowColorOverride(Color.YELLOW);
                 });
                 
                 DeathChestData data = new DeathChestData(
@@ -112,7 +115,6 @@ public class DeathChestManager {
                 playerChestMap.putIfAbsent(ownerUuid, new ArrayList<>());
                 playerChestMap.get(ownerUuid).add(loc);
 
-                // [FIX]
                 long creationTimeMillis = dbChest.createdAt;
                 long currentTimeMillis = System.currentTimeMillis();
                 long totalDespawnMillis = configManager.getDespawnTime() * 1000L;
@@ -195,6 +197,8 @@ public class DeathChestManager {
             holo.setBrightness(new Display.Brightness(15, 15));
             holo.setAlignment(TextDisplay.TextAlignment.CENTER); 
             holo.setBillboard(Display.Billboard.CENTER);
+            holo.setGlowing(true);
+            holo.setGlowColorOverride(Color.YELLOW);
         });
         
         DeathChestData data = new DeathChestData(
@@ -212,7 +216,6 @@ public class DeathChestManager {
         playerChestMap.putIfAbsent(player.getUniqueId(), new ArrayList<>());
         playerChestMap.get(player.getUniqueId()).add(blockLoc); 
 
-        // [FIX]
         startDespawnTimer(blockLoc, data, configManager.getDespawnTime());
         
         databaseManager.saveActiveChest(data);
@@ -226,10 +229,8 @@ public class DeathChestManager {
         logger.logDeath(player, locationStr, totalExp);
     }
 
-    // [FIX]
     private void startDespawnTimer(Location loc, DeathChestData data, int initialTimeLeft) {
         new BukkitRunnable() {
-            // [FIX]
             int timeLeft = initialTimeLeft;
 
             @Override
@@ -242,6 +243,18 @@ public class DeathChestManager {
                     }
                     return;
                 }
+                
+                try {
+                    World world = loc.getWorld();
+                    if (world != null) {
+                        // Particle แบบใหม่ (วิญญาณ + Totem + Glow)
+                        world.spawnParticle(Particle.SOUL, loc.clone().add(0.5, 0.5, 0.5), 5, 0.5, 0.5, 0.5, 0.02);
+                        world.spawnParticle(Particle.TOTEM, loc.clone().add(0.5, 1.0, 0.5), 1, 0.3, 0.5, 0.3, 0.1);
+                        world.spawnParticle(Particle.GLOW, loc.clone().add(0.5, 0.5, 0.5), 10, 0.5, 0.5, 0.5, 0.01);
+                    }
+                } catch (Exception e) {
+                    logger.log(LogLevel.WARN, "เกิดข้อผิดพลาดตอนสร้าง Particle (เวอร์ชั่นเซิร์ฟเวอร์อาจไม่รองรับ): " + e.getMessage());
+                }
 
                 if (timeLeft <= 0) {
                     this.cancel();
@@ -249,10 +262,18 @@ public class DeathChestManager {
                     return;
                 }
 
+                int minutes = timeLeft / 60;
+                int seconds = timeLeft % 60;
+                
+                final String timeString = (minutes > 0)
+                    ? String.format("%d นาที %d", minutes, seconds)
+                    : String.valueOf(timeLeft);
+                
+
                 String text = configManager.getHologramLines().stream()
                         .map(line -> line.replace("&", "§")
                                 .replace("%player%", data.ownerName)
-                                .replace("%time%", String.valueOf(timeLeft))
+                                .replace("%time%", timeString)
                                 .replace("%xp%", String.valueOf(data.experience))
                                 .replace("%coords%", data.locationString)
                         )

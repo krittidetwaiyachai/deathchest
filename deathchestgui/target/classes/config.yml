@@ -23,10 +23,12 @@ settings:
   hologram-y-offset: 1.5
   teleport-command-cooldown: 30
   hologram-lines:
-    - "&c&lกล่องศพของ %player%"
-    - "&eพิกัด: &f%coords%"
-    - "&bXP ที่เสียไป: &f%xp%"
-    - "&eเหลือเวลาอีก %time% วินาที"
+    - "&f&l💀 &c&l%player%'s Grave &f&l💀"
+    - "&7───────────────────"
+    - "&e📍 &f%coords%"
+    - "&b✨ &f%xp% XP"
+    - "&6⏳ &f%time% วินาที"
+    - "&7───────────────────"
 
 messages:
   death: "§cคุณตาย! ของของคุณอยู่ในกล่องที่ตำแหน่ง: §f%coords% §c(XP: §f%xp%§c)"
