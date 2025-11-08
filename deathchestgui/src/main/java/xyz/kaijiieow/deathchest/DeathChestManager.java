@@ -34,7 +34,6 @@ public class DeathChestManager {
 
     private final Map<Location, DeathChestData> activeChests = new HashMap<>();
     private final Map<UUID, List<Location>> playerChestMap = new HashMap<>(); 
-    // Resolve optional particles at runtime so the plugin stays compatible with older API versions.
     private final Particle particleSoulFireFlame = resolveParticle("SOUL_FIRE_FLAME", Particle.FLAME);
     private final Particle particleElectricSpark = resolveParticle("ELECTRIC_SPARK", Particle.FIREWORKS_SPARK);
     private final Particle particleSculkSoul = resolveParticle("SCULK_SOUL", Particle.PORTAL);
@@ -56,7 +55,7 @@ public class DeathChestManager {
         int count = 0;
         for (DatabaseChestData dbChest : dbChests) {
             try {
-                World world = Bukkit.getWorld(dbChest.world);
+                World world = Bukkit.getWorld(dbChest.world); 
                 if (world == null) {
                     logger.log(LogLevel.WARN, "ไม่พบโลกชื่อ '" + dbChest.world + "' ตอนโหลด Active Chest");
                     continue;
@@ -105,6 +104,7 @@ public class DeathChestManager {
                     holo.setGlowColorOverride(Color.YELLOW);
                 });
                 
+                // [FIX] เพิ่ม dbChest.x, y, z เข้าไปใน constructor
                 DeathChestData data = new DeathChestData(
                     ownerUuid,
                     ownerName,
@@ -112,18 +112,19 @@ public class DeathChestManager {
                     hologram,
                     items,
                     dbChest.experience,
-                    locationStr
+                    locationStr,
+                    dbChest.world,
+                    dbChest.x, // <-- [FIX]
+                    dbChest.y, // <-- [FIX]
+                    dbChest.z  // <-- [FIX]
                 );
 
                 activeChests.put(loc, data);
                 playerChestMap.putIfAbsent(ownerUuid, new ArrayList<>());
                 playerChestMap.get(ownerUuid).add(loc);
-
-                // --- [FIX] เปลี่ยน logic การคำนวณเวลา ---
-                int remainingSeconds = dbChest.remainingSeconds; // <-- [FIX] เอาเวลาที่เหลือมาจาก DB
                 
-                startDespawnTimer(loc, data, remainingSeconds); // <-- [FIX] เริ่มนับถอยหลังจากเวลานี้
-                // ------------------------------------
+                int remainingSeconds = dbChest.remainingSeconds;
+                startDespawnTimer(loc, data, remainingSeconds);
                 
                 count++;
             } catch (Exception e) {
@@ -204,6 +205,7 @@ public class DeathChestManager {
             holo.setGlowColorOverride(Color.YELLOW);
         });
         
+        // [FIX] เพิ่ม blockLoc.getBlockX(), Y, Z เข้าไปใน constructor
         DeathChestData data = new DeathChestData(
             player.getUniqueId(), 
             player.getName(), 
@@ -211,7 +213,11 @@ public class DeathChestManager {
             hologram, 
             validItems.toArray(new ItemStack[0]),
             totalExp,
-            locationStr
+            locationStr,
+            player.getWorld().getName(),
+            blockLoc.getBlockX(), // <-- [FIX]
+            blockLoc.getBlockY(), // <-- [FIX]
+            blockLoc.getBlockZ()  // <-- [FIX]
         );
 
         activeChests.put(blockLoc, data);
@@ -219,12 +225,10 @@ public class DeathChestManager {
         playerChestMap.putIfAbsent(player.getUniqueId(), new ArrayList<>());
         playerChestMap.get(player.getUniqueId()).add(blockLoc); 
 
-        // --- [FIX] แก้การเซฟ ---
         int initialTime = configManager.getDespawnTime();
         startDespawnTimer(blockLoc, data, initialTime); 
         
-        databaseManager.saveActiveChest(data, initialTime); // <-- [FIX] ส่ง initialTime ไปเซฟ
-        // -------------------------
+        databaseManager.saveActiveChest(data, initialTime); 
 
         player.sendMessage(configManager.getChatMessageDeath()
             .replace("&", "§")
@@ -238,7 +242,7 @@ public class DeathChestManager {
     private void startDespawnTimer(Location loc, DeathChestData data, int initialTimeLeft) {
         new BukkitRunnable() {
             
-            { // <-- [FIX] เพิ่ม block นี้เพื่อ set ค่าเริ่มต้นให้ data
+            { 
                 data.timeLeft = initialTimeLeft;
             }
 
@@ -267,18 +271,18 @@ public class DeathChestManager {
                     logger.log(LogLevel.WARN, "เกิดข้อผิดพลาดตอนสร้าง Particle (เวอร์ชั่นเซิร์ฟเวอร์อาจไม่รองรับ): " + e.getMessage());
                 }
 
-                if (data.timeLeft <= 0) { // <-- [FIX]
+                if (data.timeLeft <= 0) { 
                     this.cancel();
                     removeChest(loc, data, true); 
                     return;
                 }
 
-                int minutes = data.timeLeft / 60; // <-- [FIX]
-                int seconds = data.timeLeft % 60; // <-- [FIX]
+                int minutes = data.timeLeft / 60; 
+                int seconds = data.timeLeft % 60; 
                 
                 final String timeString = (minutes > 0)
                     ? String.format("%d นาที %d", minutes, seconds)
-                    : String.valueOf(data.timeLeft); // <-- [FIX]
+                    : String.valueOf(data.timeLeft); 
                 
 
                 String text = configManager.getHologramLines().stream()
@@ -292,7 +296,7 @@ public class DeathChestManager {
                 
                 data.hologramEntity.setText(text);
 
-                data.timeLeft--; // <-- [FIX]
+                data.timeLeft--; 
             }
         }.runTaskTimer(plugin, 0L, 20L);
     }
@@ -346,12 +350,13 @@ public class DeathChestManager {
             return;
         }
         logger.log(LogLevel.INFO, "กำลังเซฟเวลาที่เหลือของ Active Chests " + activeChests.size() + " กล่อง...");
-        for (Map.Entry<Location, DeathChestData> entry : activeChests.entrySet()) {
-            DeathChestData data = entry.getValue();
-            // [FIX] ลบ hologram check (isValid) ออก, เราสนแค่ data.timeLeft
-            // เราเชื่อใจว่า data.timeLeft ถูกอัปเดตโดย BukkitRunnable มาตลอด
+        
+        // [FIX] วนลูป values() แทน entrySet() เราไม่ต้องการ Location key
+        for (DeathChestData data : activeChests.values()) {
+            
             if (data != null) { 
-                databaseManager.updateChestTime(entry.getKey(), data.timeLeft);
+                // [FIX] ส่ง x, y, z, timeLeft, worldName จาก data object ไปตรงๆ
+                databaseManager.updateChestTime(data.x, data.y, data.z, data.timeLeft, data.worldName); 
             }
         }
     }
@@ -368,7 +373,6 @@ public class DeathChestManager {
                 data.hologramEntity.remove();
             }
         }
-        // เคลียร์ activeChests map เพื่อป้องกัน memory leak ตอน reload
         activeChests.clear();
         playerChestMap.clear();
     }
