@@ -36,20 +36,18 @@ public class DeathChestPlugin extends JavaPlugin {
             return;
         }
 
-        // [MODIFIED] Pass DB manager to StorageManager
+        // [FIX] ส่ง DatabaseManager กับ Logger เข้าไปดิ
         this.storageManager = new StorageManager(databaseManager, loggingService);
 
-        // [MODIFIED] Pass DB manager to DeathChestManager
+        // [FIX] ส่ง DatabaseManager เข้าไปด้วย
         this.deathChestManager = new DeathChestManager(this, configManager, storageManager, loggingService, databaseManager);
         
-        // [MODIFIED] Pass DB manager to GuiManager (though not strictly needed yet, good practice)
         this.guiManager = new GuiManager(this, configManager, hookManager, storageManager, loggingService);
         
-        // --- [NEW] Load data from DB ---
-        // ต้องโหลด Buyback ก่อน เพราะ ChestManager อาจจะย้ายของไป Buyback
+        // --- [FIX] สั่งโหลดข้อมูลจาก DB ตอนเปิดเซิร์ฟ ---
         this.storageManager.loadBuybackItemsFromDatabase();
         this.deathChestManager.loadActiveChestsFromDatabase();
-        // -----------------------------
+        // -------------------------------------------
 
         // --- ลงทะเบียน Listeners ---
         getServer().getPluginManager().registerEvents(new DeathListener(deathChestManager), this);

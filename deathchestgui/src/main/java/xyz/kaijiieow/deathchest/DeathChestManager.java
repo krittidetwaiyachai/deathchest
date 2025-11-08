@@ -23,10 +23,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-// [FIX] เพิ่ม import ของคลาสใหม่
-import xyz.kaijiieow.deathchest.DatabaseChestData; 
-
-
 public class DeathChestManager {
 
     private final DeathChestPlugin plugin;
@@ -38,7 +34,8 @@ public class DeathChestManager {
     private final Map<Location, DeathChestData> activeChests = new HashMap<>();
     private final Map<UUID, List<Location>> playerChestMap = new HashMap<>(); 
 
-    public DeathChestManager(DeathChestPlugin plugin, ConfigManager configManager, StorageManager storageManager, LoggingService logger, DatabaseManager databaseManager) { // [MODIFIED]
+    // [FIX] Constructor ต้องรับ DatabaseManager
+    public DeathChestManager(DeathChestPlugin plugin, ConfigManager configManager, StorageManager storageManager, LoggingService logger, DatabaseManager databaseManager) { 
         this.plugin = plugin;
         this.configManager = configManager;
         this.storageManager = storageManager;
@@ -48,14 +45,12 @@ public class DeathChestManager {
     
     // [NEW] Load active chests from DB on startup
     public void loadActiveChestsFromDatabase() {
-        // [FIX] แก้ Type จาก DatabaseManager.DatabaseChestData เป็น DatabaseChestData
         List<DatabaseChestData> dbChests = databaseManager.loadAllActiveChests();
         if (dbChests.isEmpty()) {
             return;
         }
 
         int count = 0;
-        // [FIX] แก้ Type จาก DatabaseManager.DatabaseChestData เป็น DatabaseChestData
         for (DatabaseChestData dbChest : dbChests) {
             try {
                 World world = Bukkit.getWorld(dbChest.world);
@@ -77,10 +72,8 @@ public class DeathChestManager {
                 ItemStack[] items = SerializationUtils.itemStackArrayFromBase64(dbChest.itemsBase64);
                 UUID ownerUuid = UUID.fromString(dbChest.ownerUuid);
                 
-                // [FIX] แก้การดึงชื่อ OfflinePlayer
                 String ownerName = Bukkit.getOfflinePlayer(ownerUuid).getName();
                 if (ownerName == null) {
-                    // ถ้า Player ไม่เคย join เลย (ซึ่งไม่ควรเกิด) ก็ใช้ UUID ไปก่อน
                     ownerName = ownerUuid.toString();
                 }
 
@@ -126,13 +119,11 @@ public class DeathChestManager {
         return activeChests.get(blockLoc);
     }
 
-    // ... (existing getActiveChestLocations) ...
     public List<Location> getActiveChestLocations(UUID playerId) {
         return playerChestMap.getOrDefault(playerId, new ArrayList<>());
     }
 
     public void createDeathChest(PlayerDeathEvent event) {
-        // ... (existing code from line 81 to 157) ...
         Player player = event.getEntity();
         Location deathLoc = player.getLocation();
 
@@ -207,7 +198,7 @@ public class DeathChestManager {
 
         startDespawnTimer(blockLoc, data);
         
-        // [NEW] Save to database
+        // [FIX] สั่งเซฟลง DB ด้วย
         databaseManager.saveActiveChest(data);
 
         player.sendMessage(configManager.getChatMessageDeath()
@@ -219,7 +210,6 @@ public class DeathChestManager {
         logger.logDeath(player, locationStr, totalExp);
     }
 
-    // ... (existing startDespawnTimer) ...
     private void startDespawnTimer(Location loc, DeathChestData data) {
         new BukkitRunnable() {
             int timeLeft = configManager.getDespawnTime();
@@ -258,7 +248,7 @@ public class DeathChestManager {
     }
 
     public void removeChest(Location loc, DeathChestData data, boolean moveToBuyback) {
-        // [NEW] Delete from DB first
+        // [FIX] สั่งลบจาก DB
         databaseManager.deleteActiveChest(loc);
         
         if (data.hologramEntity != null && data.hologramEntity.isValid()) {
@@ -277,7 +267,7 @@ public class DeathChestManager {
         }
 
         if (moveToBuyback && (data.items.length > 0 || data.experience > 0)) {
-            // [MODIFIED] Call the new StorageManager method
+            // [FIX] เรียกใช้ StorageManager ให้มันไปเซฟลง DB
             storageManager.addBuybackItem(data.ownerUUID, data.items, data.experience);
             
             logger.logChestExpired(data.ownerName, data.locationString, data.experience);
@@ -289,7 +279,6 @@ public class DeathChestManager {
         } else if (moveToBuyback) {
             logger.log(LogLevel.INFO, "ลบกล่องศพหมดอายุ (แต่ว่างเปล่า) ของ: " + data.ownerName);
         } else {
-            // This 'else' branch is hit by cleanupAllChests, no log needed
         }
     }
 
