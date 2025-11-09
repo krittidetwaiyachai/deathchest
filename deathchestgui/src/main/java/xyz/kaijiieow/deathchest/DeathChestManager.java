@@ -302,7 +302,7 @@ public class DeathChestManager {
 
                 data.timeLeft--; 
             }
-        }.runTaskTimer(plugin, 0L, 20L);
+        }.runTaskTimer(plugin, 1L, 20L);
     }
 
     public void removeChest(Location loc, DeathChestData data, boolean moveToBuyback) {
