@@ -69,12 +69,21 @@ public class LoggingService {
      * @param sendSimpleWebhook true to send a simple webhook, false if a rich one will be sent separately.
      */
     public void log(LogLevel level, String message, boolean sendSimpleWebhook) {
+        // 1. Log to Console (Sync - อันนี้จำเป็นต้อง Sync)
         plugin.getLogger().log(level.getJavaLevel(), message);
 
+        // [FIX 5.2] ย้าย File I/O ไป Async
         if (configManager.isFileLoggingEnabled() && fileLogger != null) {
-            fileLogger.log(level.getJavaLevel(), message);
+            // (ต้อง capture ค่า level กับ message มาใช้ใน lambda)
+            final Level javaLevel = level.getJavaLevel();
+            final String logMessage = message; 
+            
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                fileLogger.log(javaLevel, logMessage);
+            });
         }
 
+        // 3. Log to Discord (อันนี้ Async อยู่แล้วจากเมธอด postAsync)
         if (configManager.isDiscordLoggingEnabled() && sendSimpleWebhook) {
             sendSimpleDiscordWebhook(level, message);
         }
@@ -208,12 +217,11 @@ public class LoggingService {
             admin.getName(), buybackIndex + 1, targetPlayer.getName()
         );
         log(LogLevel.INFO, msg, false); // [EDIT] Don't send simple webhook (as intended)
-
-        // ไม่ส่งไป Discord เพราะมันจะรกเกินไป ข้อความในเกมพอบอก
     }
 
 
     // ===================== Discord Helpers =====================
+    // (โค้ดส่วนนี้ทั้งหมดเหมือนเดิม ไม่ต้องแก้)
 
     private String levelEmoji(LogLevel level) {
         switch (level) {
@@ -235,7 +243,6 @@ public class LoggingService {
 
     private String escape(String s) {
         if (s == null) return "";
-        // Escape สำหรับ JSON แบบง่ายพอใช้กับ Discord
         return s
             .replace("\\", "\\\\")
             .replace("\"", "\\\"")
@@ -251,7 +258,6 @@ public class LoggingService {
         }
 
         String title = levelEmoji(level) + " " + levelThai(level);
-        // จัดรูปแบบให้อ่านง่ายเป็นภาษาไทย + เว้นบรรทัด
         String description =
               "```" + levelThai(level) + "```"
             + "รายละเอียด:\n"
@@ -333,10 +339,8 @@ public class LoggingService {
                     byte[] input = jsonPayload.getBytes(StandardCharsets.UTF_8);
                     os.write(input, 0, input.length);
                 }
-                // fire the request
                 con.getResponseCode();
             } catch (Exception ignored) {
-                // ไม่ต้อง spam console
             } finally {
                 if (con != null) con.disconnect();
             }

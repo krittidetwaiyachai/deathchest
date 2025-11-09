@@ -15,6 +15,7 @@ public class ConfigManager {
     private double hologramYOffset;
     private int tpChestCooldown; 
     private List<String> hologramLines;
+    private boolean showParticles; // [FIX 5.3] เพิ่ม field นี้
 
     private String chatMessageDeath;
     private String chatMessageExpired;
@@ -36,7 +37,6 @@ public class ConfigManager {
     private String discordWebhookUrl;
     private String discordUsername;
     
-    // --- [NEW] Database Fields ---
     private String dbType;
     private String dbFilename;
     private String dbHost;
@@ -44,7 +44,6 @@ public class ConfigManager {
     private String dbDatabase;
     private String dbUsername;
     private String dbPassword;
-    // ----------------------------
 
     public ConfigManager(DeathChestPlugin plugin) {
         this.plugin = plugin;
@@ -56,7 +55,6 @@ public class ConfigManager {
     private void loadConfigValues() {
         FileConfiguration config = plugin.getConfig();
         
-        // --- [NEW] Load Database Config ---
         this.dbType = config.getString("database.type", "SQLITE").toUpperCase();
         this.dbFilename = config.getString("database.filename", "storage.db");
         this.dbHost = config.getString("database.mysql.host", "localhost");
@@ -64,7 +62,6 @@ public class ConfigManager {
         this.dbDatabase = config.getString("database.mysql.database", "deathchest");
         this.dbUsername = config.getString("database.mysql.username", "user");
         this.dbPassword = config.getString("database.mysql.password", "pass");
-        // ----------------------------------
 
         this.economyProvider = config.getString("settings.economy-provider", "COINS_ENGINE").toUpperCase();
         
@@ -75,6 +72,7 @@ public class ConfigManager {
         this.hologramYOffset = config.getDouble("settings.hologram-y-offset", 1.2);
         this.tpChestCooldown = config.getInt("settings.teleport-command-cooldown", 30); 
         this.hologramLines = config.getStringList("settings.hologram-lines");
+        this.showParticles = config.getBoolean("settings.show-particles", true); // [FIX 5.3] เพิ่มบรรทัดนี้
 
         this.chatMessageDeath = config.getString("messages.death", "§cคุณตาย! ของของคุณอยู่ในกล่องที่ตำแหน่ง: §f%coords% §c(XP: §f%xp%§c)");
         this.chatMessageExpired = config.getString("messages.expired", "§cกล่องเก็บของของคุณหมดเวลา! §eคุณสามารถซื้อคืนได้ด้วยคำสั่ง §f/buyback");
@@ -97,7 +95,7 @@ public class ConfigManager {
         this.discordUsername = config.getString("logging.discord.username", "DeathChest Logger");
     }
     
-    // --- [NEW] Database Getters ---
+    // --- Database Getters ---
     public String getDbType() { return dbType; }
     public String getDbFilename() { return dbFilename; }
     public String getDbHost() { return dbHost; }
@@ -105,7 +103,6 @@ public class ConfigManager {
     public String getDbDatabase() { return dbDatabase; }
     public String getDbUsername() { return dbUsername; }
     public String getDbPassword() { return dbPassword; }
-    // ----------------------------
 
     public String getEconomyProvider() { return economyProvider; }
 
@@ -116,6 +113,7 @@ public class ConfigManager {
     public double getHologramYOffset() { return hologramYOffset; }
     public int getTpChestCooldown() { return tpChestCooldown; } 
     public List<String> getHologramLines() { return hologramLines; }
+    public boolean isShowParticles() { return showParticles; } // [FIX 5.3] เพิ่ม getter นี้
 
     public String getChatMessageDeath() { return chatMessageDeath; }
     public String getChatMessageExpired() { return chatMessageExpired; }

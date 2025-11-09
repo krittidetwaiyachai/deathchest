@@ -1,107 +1,122 @@
 package xyz.kaijiieow.deathchest;
 
-import org.bukkit.Location;
+import org.bukkit.Bukkit;
+// import org.bukkit.Location; // [FIX 3.2] ไม่ใช้แล้ว
 import org.bukkit.Material;
-import org.bukkit.block.Block;
-import org.bukkit.entity.EnderDragon;
-import org.bukkit.entity.Wither;
+import org.bukkit.block.Block; // [FIX 3.2]
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.block.BlockBreakEvent;
-import org.bukkit.event.block.BlockBurnEvent;
-import org.bukkit.event.block.BlockPhysicsEvent;
-import org.bukkit.event.block.BlockPistonExtendEvent;
-import org.bukkit.event.block.BlockPistonRetractEvent;
-import org.bukkit.event.entity.EntityChangeBlockEvent;
-import org.bukkit.event.entity.EntityExplodeEvent;
-import org.bukkit.event.inventory.InventoryMoveItemEvent;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.scheduler.BukkitRunnable;
 
-public class ChestProtectionListener implements Listener {
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
+public class ChestInteractListener implements Listener {
+
+    private final DeathChestPlugin plugin;
     private final DeathChestManager deathChestManager;
-
-    public ChestProtectionListener(DeathChestManager deathChestManager) {
-        this.deathChestManager = deathChestManager;
-    }
-
-    private boolean isDeathChest(Location loc) {
-        return deathChestManager.getActiveChestAt(loc) != null;
-    }
-
-    // 1. กันคนทุบ
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onBlockBreak(BlockBreakEvent event) {
-        if (isDeathChest(event.getBlock().getLocation())) {
-            event.setCancelled(true);
-        }
-    }
-
-    // 2. กันระเบิด (TNT, Creeper)
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onEntityExplode(EntityExplodeEvent event) {
-        event.blockList().removeIf(block -> isDeathChest(block.getLocation()));
-    }
-
-    // 3. กันไฟไหม้
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onBlockBurn(BlockBurnEvent event) {
-        if (isDeathChest(event.getBlock().getLocation())) {
-            event.setCancelled(true);
-        }
-    }
-
-    // 4. กัน Piston ดัน
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onPistonExtend(BlockPistonExtendEvent event) {
-        for (Block block : event.getBlocks()) {
-            if (isDeathChest(block.getLocation())) {
-                event.setCancelled(true);
-                return;
-            }
-            if (isDeathChest(block.getRelative(event.getDirection()).getLocation())) {
-                event.setCancelled(true);
-                return;
-            }
-        }
-    }
-
-    // 5. กัน Piston ดึง
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onPistonRetract(BlockPistonRetractEvent event) {
-        for (Block block : event.getBlocks()) {
-            if (isDeathChest(block.getLocation())) {
-                event.setCancelled(true);
-                return;
-            }
-        }
-    }
-
-    // 6. [อัปเกรด] กัน Hopper (ทั้งบล็อก และ รถ) ดูด
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onHopperMove(InventoryMoveItemEvent event) {
-        if (event.getSource().getLocation() != null && isDeathChest(event.getSource().getLocation())) {
-            event.setCancelled(true);
-        }
-    }
-
-    // 7. [ใหม่] กันมังกร/Wither เปลี่ยนบล็อก
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onEntityChangeBlock(EntityChangeBlockEvent event) {
-        if (event.getEntity() instanceof EnderDragon || event.getEntity() instanceof Wither) {
-            if (isDeathChest(event.getBlock().getLocation())) {
-                event.setCancelled(true);
-            }
-        }
-    }
+    private final ConfigManager configManager;
     
-    // 8. [ใหม่] กันฟิสิกส์ (เช่น บล็อกข้างใต้หาย แล้วกล่องเด้ง)
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onBlockPhysics(BlockPhysicsEvent event) {
-        if (event.getBlock().getType() == Material.CHEST) {
-            if (isDeathChest(event.getBlock().getLocation())) {
-                event.setCancelled(true);
+    // [FIX 3.2] เปลี่ยน Map value จาก Location เป็น BlockLocation
+    private final Map<UUID, BlockLocation> viewingChest = new HashMap<>();
+    private final String VIRTUAL_CHEST_TITLE_PREFIX = "กล่องศพของ ";
+
+    public ChestInteractListener(DeathChestPlugin plugin, DeathChestManager deathChestManager, ConfigManager configManager) {
+        this.plugin = plugin;
+        this.deathChestManager = deathChestManager;
+        this.configManager = configManager;
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onChestOpen(PlayerInteractEvent event) {
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null || event.getClickedBlock().getType() != Material.CHEST) {
+            return;
+        }
+
+        Block block = event.getClickedBlock(); // [FIX 3.2]
+        DeathChestData data = deathChestManager.getActiveChestAt(block); // [FIX 3.2] ใช้เมธอดใหม่
+
+        if (data == null) {
+            return; 
+        }
+
+        event.setCancelled(true);
+
+        Player player = event.getPlayer();
+        boolean isOwner = player.getUniqueId().equals(data.ownerUUID);
+
+        if (!isOwner && !configManager.isAllowOtherPlayersToOpen()) {
+            player.sendMessage(configManager.getChatMessageNotYourChest().replace("&", "§"));
+            return;
+        }
+
+        if (isOwner && data.experience > 0) {
+            player.giveExp(data.experience);
+            player.sendMessage(configManager.getChatMessageXpRestored().replace("&", "§").replace("%xp%", String.valueOf(data.experience)));
+            data.experience = 0;
+        }
+
+        Inventory virtualChest = Bukkit.createInventory(player, 54, VIRTUAL_CHEST_TITLE_PREFIX + data.ownerName);
+        
+        if (data.items != null) {
+            virtualChest.setContents(data.items);
+        }
+
+        player.openInventory(virtualChest);
+        
+        // [FIX 3.2] สร้างและเก็บ Key (BlockLocation)
+        BlockLocation key = new BlockLocation(data.worldName, data.x, data.y, data.z);
+        viewingChest.put(player.getUniqueId(), key);
+    }
+
+    @EventHandler
+    public void onChestClose(InventoryCloseEvent event) {
+        Player player = (Player) event.getPlayer();
+        
+        // [FIX 3.2] ดึง Key (BlockLocation) ออกมา
+        BlockLocation key = viewingChest.remove(player.getUniqueId());
+        if (key == null) {
+            return; 
+        }
+
+        // [FIX 3.2] ใช้ Key (BlockLocation) ในการดึงข้อมูล
+        DeathChestData data = deathChestManager.getActiveChestAt(key);
+        if (data == null) {
+            return; 
+        }
+        
+        if (!event.getView().getTitle().equals(VIRTUAL_CHEST_TITLE_PREFIX + data.ownerName)) {
+            return;
+        }
+
+        ItemStack[] newContents = event.getInventory().getContents();
+        data.items = newContents;
+
+        boolean isEmpty = true;
+        for (ItemStack item : newContents) {
+            if (item != null && item.getType() != Material.AIR) {
+                isEmpty = false;
+                break;
             }
+        }
+
+        if (isEmpty && data.experience == 0) {
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    plugin.getLoggingService().logChestCollected(data.ownerName, data.locationString);
+                    // [FIX 3.2] ส่ง Key (BlockLocation) ไปลบ
+                    deathChestManager.removeChest(key, data, false); 
+                }
+            }.runTask(plugin);
         }
     }
 }

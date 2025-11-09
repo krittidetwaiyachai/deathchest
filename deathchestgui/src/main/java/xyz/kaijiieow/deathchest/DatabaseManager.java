@@ -15,6 +15,7 @@ import java.sql.Statement;
 // import java.sql.Timestamp; // ไม่ใช้แล้ว
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map; // [FIX 4.5]
 import java.util.UUID;
 
 public class DatabaseManager {
@@ -79,6 +80,7 @@ public class DatabaseManager {
         String activeChestTable = "CREATE TABLE IF NOT EXISTS active_chests (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "owner_uuid VARCHAR(36) NOT NULL, " +
+                "owner_name VARCHAR(36) NOT NULL DEFAULT 'Unknown', " + // [FIX 4.2] เพิ่มคอลัมน์
                 "world VARCHAR(100) NOT NULL, " +
                 "x INT NOT NULL, " +
                 "y INT NOT NULL, " +
@@ -122,7 +124,8 @@ public class DatabaseManager {
 
     public List<DatabaseChestData> loadAllActiveChests() {
         List<DatabaseChestData> chests = new ArrayList<>();
-        String sql = "SELECT owner_uuid, world, x, y, z, items_base64, experience, remaining_seconds, created_at FROM active_chests"; // [FIX]
+        // [FIX 4.4] เพิ่ม owner_name
+        String sql = "SELECT owner_uuid, owner_name, world, x, y, z, items_base64, experience, remaining_seconds, created_at FROM active_chests"; // [FIX]
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
@@ -131,9 +134,10 @@ public class DatabaseManager {
                 int remainingSeconds = rs.getInt("remaining_seconds");
                 long createdAt = rs.getLong("created_at"); // [FIX]
                 
-                // [FIX] เรียก constructor ของ DatabaseChestData (ตัว DTO) ให้ถูกต้อง
+                // [FIX 4.4] แก้ constructor ของ DatabaseChestData (ตัว DTO) ให้ถูกต้อง
                 chests.add(new DatabaseChestData(
                     rs.getString("owner_uuid"),
+                    rs.getString("owner_name"), // [FIX 4.4]
                     rs.getString("world"),
                     rs.getInt("x"),
                     rs.getInt("y"),
@@ -150,23 +154,25 @@ public class DatabaseManager {
         return chests;
     }
 
-    // [FIX] แก้ไข Method นี้
+    // [FIX 4.3] แก้ไข Method นี้
     public void saveActiveChest(DeathChestData data, int remainingTime, long createdAt) { 
-        String sql = "INSERT INTO active_chests (owner_uuid, world, x, y, z, items_base64, experience, remaining_seconds, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"; // [FIX]
+        // [FIX 4.3] เพิ่ม owner_name
+        String sql = "INSERT INTO active_chests (owner_uuid, owner_name, world, x, y, z, items_base64, experience, remaining_seconds, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"; // [FIX]
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             
             String itemsBase64 = SerializationUtils.itemStackArrayToBase64(data.items);
 
             ps.setString(1, data.ownerUUID.toString());
-            ps.setString(2, data.worldName); // [FIX] ใช้ค่า primitive จาก data
-            ps.setInt(3, data.x); // [FIX] ใช้ค่า primitive จาก data
-            ps.setInt(4, data.y); // [FIX] ใช้ค่า primitive จาก data
-            ps.setInt(5, data.z); // [FIX] ใช้ค่า primitive จาก data
-            ps.setString(6, itemsBase64);
-            ps.setInt(7, data.experience);
-            ps.setInt(8, remainingTime); 
-            ps.setLong(9, createdAt); // [FIX]
+            ps.setString(2, data.ownerName); // [FIX 4.3]
+            ps.setString(3, data.worldName); // [FIX] ใช้ค่า primitive จาก data
+            ps.setInt(4, data.x); // [FIX] ใช้ค่า primitive จาก data
+            ps.setInt(5, data.y); // [FIX] ใช้ค่า primitive จาก data
+            ps.setInt(6, data.z); // [FIX] ใช้ค่า primitive จาก data
+            ps.setString(7, itemsBase64);
+            ps.setInt(8, data.experience);
+            ps.setInt(9, remainingTime); 
+            ps.setLong(10, createdAt); // [FIX]
             ps.executeUpdate();
 
         } catch (Exception e) {
@@ -192,8 +198,7 @@ public class DatabaseManager {
     }
 
     public void updateChestTime(int x, int y, int z, int remainingSeconds, String worldName) {
-        plugin.getLogger().info(String.format("กำลังอัปเดตเวลา: W=%s, X=%d, Y=%d, Z=%d, Time=%d", worldName, x, y, z, remainingSeconds));
-        
+        // เมธอดนี้ไม่ได้ใช้ใน Phase 4.5 แต่เก็บไว้
         String sql = "UPDATE active_chests SET remaining_seconds = ? WHERE world = ? AND x = ? AND y = ? AND z = ?";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -203,17 +208,45 @@ public class DatabaseManager {
             ps.setInt(3, x); 
             ps.setInt(4, y); 
             ps.setInt(5, z); 
-            int rowsAffected = ps.executeUpdate(); 
-
-            if (rowsAffected == 0) {
-                 plugin.getLogger().warning(String.format("UpdateChestTime ไม่พบแถวที่จะอัปเดต: W=%s, X=%d, Y=%d, Z=%d", worldName, x, y, z));
-            } else {
-                 plugin.getLogger().info(String.format("UpdateChestTime อัปเดต %d แถว สำเร็จ", rowsAffected));
-            }
+            ps.executeUpdate(); 
 
         } catch (Exception e) { 
             plugin.getLogger().severe("ไม่สามารถอัปเดตเวลา Active Chest ใน DB: " + e.getMessage());
             e.printStackTrace(); 
+        }
+    }
+    
+    // [FIX 4.5] เพิ่มเมธอด Batch Update (นี่คือเวอร์ชันที่ใช้ BlockLocation จาก Phase 3)
+    public void batchUpdateChestTimes(Map<BlockLocation, DeathChestData> activeChests) {
+        String sql = "UPDATE active_chests SET remaining_seconds = ? WHERE world = ? AND x = ? AND y = ? AND z = ?";
+        
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            
+            conn.setAutoCommit(false); // เริ่ม Transaction
+
+            for (Map.Entry<BlockLocation, DeathChestData> entry : activeChests.entrySet()) {
+                BlockLocation key = entry.getKey();
+                DeathChestData data = entry.getValue();
+
+                if (data != null) {
+                    ps.setInt(1, data.timeLeft);
+                    ps.setString(2, key.worldName());
+                    ps.setInt(3, key.x());
+                    ps.setInt(4, key.y());
+                    ps.setInt(5, key.z());
+                    ps.addBatch(); // เพิ่มเข้า Batch
+                }
+            }
+            
+            int[] results = ps.executeBatch(); // ยิง query ทั้งหมดในครั้งเดียว
+            conn.commit(); // ยืนยัน Transaction
+            
+            logger.log(LogLevel.INFO, "Batch update เวลาคงเหลือของกล่องศพ " + results.length + " กล่อง สำเร็จ.");
+
+        } catch (SQLException e) {
+            logger.log(LogLevel.ERROR, "ไม่สามารถ batch update เวลาคงเหลือของกล่องศพได้: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
