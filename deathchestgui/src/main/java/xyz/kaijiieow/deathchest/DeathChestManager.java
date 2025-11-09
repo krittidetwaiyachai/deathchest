@@ -48,7 +48,7 @@ public class DeathChestManager {
         this.databaseManager = databaseManager;
     }
     
-    // (GlobalTimer - โค้ดนี้ถูกแล้ว)
+    // (GlobalTimer - [FIX] แก้ไขตรงนี้)
     public void startGlobalTimer() {
         new BukkitRunnable() {
             @Override
@@ -64,11 +64,72 @@ public class DeathChestManager {
                     BlockLocation key = entry.getKey();
                     DeathChestData data = entry.getValue();
 
+                    // [FIX] ถ้าโฮโลแกรมหาย ให้ "สร้างใหม่" แทนที่จะลบทิ้ง
                     if (data.hologramEntity == null || !data.hologramEntity.isValid()) {
-                        logger.log(LoggingService.LogLevel.WARN, "โฮโลแกรมของ " + data.ownerName + " หาย! (อาจโดน /kill) ทำการลบกล่อง...");
-                        chestsToRemove.add(key);
-                        continue; 
+                        logger.log(LoggingService.LogLevel.WARN, "โฮโลแกรมของ " + data.ownerName + " หาย! พยายามสร้างใหม่...");
+                        try {
+                            World world = Bukkit.getWorld(key.worldName());
+                            if (world != null) {
+                                Location hologramLoc = new Location(world, key.x() + 0.5, key.y() + configManager.getHologramYOffset(), key.z() + 0.5);
+                                
+                                // [Respawn Logic] คำนวณ Text ใหม่
+                                int minutes = data.timeLeft / 60;
+                                int seconds = data.timeLeft % 60;
+                                final String timeString;
+                                if (minutes > 0) {
+                                    timeString = minutes + " นาที " + seconds;
+                                } else {
+                                    timeString = String.valueOf(data.timeLeft);
+                                }
+                                
+                                hologramStringBuilder.setLength(0);
+                                List<String> lines = configManager.getHologramLines();
+                                for (int i = 0; i < lines.size(); i++) {
+                                    String line = lines.get(i);
+                                    line = line.replace("&", "§")
+                                            .replace("%player%", data.ownerName)
+                                            .replace("%time%", timeString)
+                                            .replace("%xp%", String.valueOf(data.experience))
+                                            .replace("%coords%", data.locationString);
+                                    
+                                    hologramStringBuilder.append(line);
+                                    if (i < lines.size() - 1) { 
+                                        hologramStringBuilder.append("\n"); 
+                                    }
+                                }
+                                final String newText = hologramStringBuilder.toString();
+
+                                // [Respawn Logic] Spawn โฮโลแกรมใหม่
+                                TextDisplay newHologram = world.spawn(hologramLoc, TextDisplay.class, (holo) -> {
+                                    holo.setGravity(false);
+                                    holo.setPersistent(false);
+                                    holo.setInvulnerable(true);
+                                    holo.setBrightness(new Display.Brightness(15, 15));
+                                    holo.setAlignment(TextDisplay.TextAlignment.CENTER); 
+                                    holo.setBillboard(Display.Billboard.CENTER);
+                                    holo.setGlowing(true);
+                                    holo.setGlowColorOverride(Color.YELLOW);
+                                    holo.setViewRange(64.0f);
+                                    holo.setText(newText); // ตั้งค่า Text ทันที
+                                });
+                                
+                                // อัปเดต data ด้วยโฮโลแกรมใหม่
+                                data.hologramEntity = newHologram;
+                                logger.log(LoggingService.LogLevel.INFO, "สร้างโฮโลแกรมให้ " + data.ownerName + " ใหม่สำเร็จ.");
+                                
+                            } else {
+                                // ถ้า World หาย (โหลดไม่เสร็จ?) ค่อยลบทิ้ง
+                                logger.log(LoggingService.LogLevel.WARN, "ไม่สามารถสร้างโฮโลแกรมใหม่ได้ (World '" + key.worldName() + "' is null) ทำการลบกล่อง...");
+                                chestsToRemove.add(key);
+                                continue;
+                            }
+                        } catch (Exception e) {
+                            logger.log(LoggingService.LogLevel.ERROR, "เกิด Error ตอนพยายามสร้างโฮโลแกรมใหม่: " + e.getMessage());
+                            chestsToRemove.add(key); // ถ้าสร้างใหม่แล้ว Error ก็ลบทิ้งไป
+                            continue;
+                        }
                     }
+                    // --- จบส่วน [FIX] ---
 
                     // 1. เช็กก่อนว่าหมดเวลารึยัง
                     if (data.timeLeft <= 0) {
@@ -118,7 +179,11 @@ public class DeathChestManager {
                             hologramStringBuilder.append("\n"); 
                         }
                     }
-                    data.hologramEntity.setText(hologramStringBuilder.toString());
+                    
+                    // [FIX] เช็กเผื่อไว้หน่อยว่า hologram entity มัน(กลับมา) valid รึยัง
+                    if (data.hologramEntity != null && data.hologramEntity.isValid()) {
+                         data.hologramEntity.setText(hologramStringBuilder.toString());
+                    }
 
                     // 4. ลดเวลา (สำหรับ tick หน้า)
                     data.timeLeft--;
@@ -232,7 +297,7 @@ public class DeathChestManager {
                             holo.setBillboard(Display.Billboard.CENTER);
                             holo.setGlowing(true);
                             holo.setGlowColorOverride(Color.YELLOW);
-                            holo.setViewRange(32.0f);
+                            holo.setViewRange(64.0f);
                             
                             // [FIX] ตั้งค่า Text ทันที!! (กัน GC ลบ)
                             holo.setText(initialText);
@@ -348,7 +413,7 @@ public class DeathChestManager {
             holo.setBillboard(Display.Billboard.CENTER);
             holo.setGlowing(true);
             holo.setGlowColorOverride(Color.YELLOW);
-            holo.setViewRange(32.0f); 
+            holo.setViewRange(64.0f); 
             holo.setText(initialText); // [FIX] ตั้งค่า Text ทันที
         });
         
