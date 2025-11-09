@@ -47,7 +47,7 @@ public class DeathChestPlugin extends JavaPlugin {
             public void run() {
                 deathChestManager.loadActiveChestsFromDatabase();
             }
-        }.runTaskLater(this, 20L);
+        }.runTaskLater(this, 120L);
 
         getServer().getPluginManager().registerEvents(new DeathListener(deathChestManager), this);
         getServer().getPluginManager().registerEvents(new GuiListener(guiManager), this);
