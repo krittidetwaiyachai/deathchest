@@ -1,7 +1,7 @@
 package xyz.kaijiieow.deathchest;
 
 import org.bukkit.plugin.java.JavaPlugin;
-import java.util.List; // [FIX 4.1] Import
+import java.util.List;
 
 public class DeathChestPlugin extends JavaPlugin {
 
@@ -44,8 +44,10 @@ public class DeathChestPlugin extends JavaPlugin {
         // [FIX 2.1] สั่งเริ่ม Global Timer
         this.deathChestManager.startGlobalTimer();
         
+        // [FIX] แก้คืน! ใช้ชื่อเมธอดที่ถูกต้องจาก StorageManager.java
         this.storageManager.loadBuybackItemsFromDatabase();
-        
+
+
         // [FIX 1.4 & 4.1] โค้ดโหลด Async + Stagger
         new org.bukkit.scheduler.BukkitRunnable() {
             @Override
@@ -65,7 +67,6 @@ public class DeathChestPlugin extends JavaPlugin {
         }.runTaskAsynchronously(this);
         
         // ลบ task later อันเก่า
-        // new org.bukkit.scheduler.BukkitRunnable() { ... }.runTaskLater(this, 120L); // <--- ลบ
 
         getServer().getPluginManager().registerEvents(new DeathListener(deathChestManager), this);
         getServer().getPluginManager().registerEvents(new GuiListener(guiManager), this);
@@ -74,7 +75,8 @@ public class DeathChestPlugin extends JavaPlugin {
         
         getCommand("buyback").setExecutor(new BuybackCommand(guiManager));
         getCommand("tpchest").setExecutor(new TeleportChestCommand(deathChestManager, configManager)); 
-        getCommand("dctp").setExecutor(new AdminChestCommand(guiManager, configManager, loggingService, deathChestManager));
+        // [FIX] แก้ constructor ของ AdminChestCommand (จาก error ที่แล้ว)
+        getCommand("dctp").setExecutor(new AdminChestCommand(guiManager, configManager, loggingService, deathChestManager)); 
 
         loggingService.log(LoggingService.LogLevel.INFO, "DeathChestGUI (Refactored) เปิดใช้งานแล้ว!");
     }
@@ -82,29 +84,29 @@ public class DeathChestPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         
-        // [FIX] ลบไอ้บรรทัดนี้ทิ้งไปซะ มันคือตัวการที่ทำให้ของมึงหายตอนรีเซิร์ฟ
-        // if (deathChestManager != null) {
-        //     deathChestManager.cleanupAllChests();
-        // }
-        
         // --- [FIX] แก้ไขลำดับการทำงานตรงนี้ ---
+        
+        // [FIX] 1. บอก Logger ให้อยู่ในโหมดปิดตัวก่อน (ห้ามรัน Async)
+        if (loggingService != null) {
+            loggingService.setDisabling();
+        }
+
         if (deathChestManager != null && loggingService != null) {
             
-            // 1. เซฟเวลาก่อน (สำคัญสุด)
-            // [FIX 4.5] เมธอดนี้ถูกแก้ข้างในให้เป็น Batch Update แล้ว
+            // 2. เซฟเวลาก่อน (สำคัญสุด)
             getLogger().info("กำลังเซฟเวลาที่เหลือของกล่องศพ (Batch)...");
-            deathChestManager.saveAllChestTimes();
+            deathChestManager.saveAllChestTimes(); // <--- ตอนนี้มันจะ Log แบบ Sync
             
-            // 2. ลบ entities (holograms) ทิ้ง
+            // 3. ลบ entities (holograms) ทิ้ง
             getLogger().info("กำลังล้าง entities (holograms)...");
             deathChestManager.cleanupEntitiesOnDisable(); 
         }
-        // -------------------------
         
         if (databaseManager != null) {
             databaseManager.close();
         }
         
+        // 4. ปิด Logger (File handler)
         if (loggingService != null) {
             getLogger().info("DeathChestGUI ปิดการใช้งาน");
             loggingService.close(); 

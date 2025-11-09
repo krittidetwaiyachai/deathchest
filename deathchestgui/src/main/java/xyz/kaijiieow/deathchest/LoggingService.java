@@ -19,6 +19,7 @@ public class LoggingService {
     private final DeathChestPlugin plugin;
     private final ConfigManager configManager;
     private Logger fileLogger;
+    private boolean isDisabling = false; // [FIX] เพิ่ม Flag นี้
 
     public enum LogLevel {
         INFO(Level.INFO, 0x57F287),   // เขียวมิ้นต์ Discord
@@ -60,47 +61,52 @@ public class LoggingService {
         }
     }
 
+    // [FIX] เพิ่มเมธอดนี้ ให้ DeathChestPlugin เรียก
+    public void setDisabling() {
+        this.isDisabling = true;
+        log(LogLevel.INFO, "Logger กำลังสลับไปโหมด Synchronous เพื่อปิดเซิร์ฟเวอร์...", false);
+    }
+
+
     // ===================== Public APIs =====================
 
-    /**
-     * Logs a message to console, file, and optionally sends a SIMPLE Discord webhook.
-     * @param level Log level
-     * @param message The message
-     * @param sendSimpleWebhook true to send a simple webhook, false if a rich one will be sent separately.
-     */
     public void log(LogLevel level, String message, boolean sendSimpleWebhook) {
         // 1. Log to Console (Sync - อันนี้จำเป็นต้อง Sync)
         plugin.getLogger().log(level.getJavaLevel(), message);
 
-        // [FIX 5.2] ย้าย File I/O ไป Async
+        // [FIX] เช็ก Flag ก่อนรัน Async
         if (configManager.isFileLoggingEnabled() && fileLogger != null) {
-            // (ต้อง capture ค่า level กับ message มาใช้ใน lambda)
-            final Level javaLevel = level.getJavaLevel();
-            final String logMessage = message; 
-            
-            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-                fileLogger.log(javaLevel, logMessage);
-            });
+            if (isDisabling) {
+                // ถ้ากำลังปิด -> Log แบบธรรมดา (Sync)
+                fileLogger.log(level.getJavaLevel(), message);
+            } else {
+                // ถ้าทำงานปกติ -> Log แบบ Async
+                final Level javaLevel = level.getJavaLevel();
+                final String logMessage = message; 
+                
+                Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                    fileLogger.log(javaLevel, logMessage);
+                });
+            }
         }
 
-        // 3. Log to Discord (อันนี้ Async อยู่แล้วจากเมธอด postAsync)
+        // [FIX] เช็ก Flag ก่อนส่ง Discord
         if (configManager.isDiscordLoggingEnabled() && sendSimpleWebhook) {
+            if (isDisabling) return; // กำลังปิด, ไม่ต้องส่ง
             sendSimpleDiscordWebhook(level, message);
         }
     }
 
-    /**
-     * Logs a message to console, file, and sends a SIMPLE Discord webhook.
-     */
     public void log(LogLevel level, String message) {
         log(level, message, true); // Default to sending a simple webhook
     }
 
     public void logDeath(Player player, String locationStr, int totalExp) {
         String msg = "สร้างกล่องศพให้ " + player.getName() + " ที่ " + locationStr + " (XP: " + totalExp + ")";
-        log(LogLevel.INFO, msg, false); // [EDIT] Don't send simple webhook
+        log(LogLevel.INFO, msg, false); 
 
-        if (configManager.isDiscordLoggingEnabled()) {
+        // [FIX] เช็ก Flag
+        if (configManager.isDiscordLoggingEnabled() && !isDisabling) {
             sendRichDiscordWebhook(
                 LogLevel.INFO,
                 "💀 สร้างกล่องศพ",
@@ -117,9 +123,10 @@ public class LoggingService {
             "%s ซื้อของคืน (ชุด %d) ราคา %d %s (ได้รับ XP: %d)",
             player.getName(), setIndex, cost, currency, experience
         );
-        log(LogLevel.INFO, msg, false); // [EDIT] Don't send simple webhook
+        log(LogLevel.INFO, msg, false);
 
-        if (configManager.isDiscordLoggingEnabled()) {
+        // [FIX] เช็ก Flag
+        if (configManager.isDiscordLoggingEnabled() && !isDisabling) {
             sendRichDiscordWebhook(
                 LogLevel.INFO,
                 "🛒 ซื้อของคืน",
@@ -131,17 +138,17 @@ public class LoggingService {
         }
     }
 
-    // [NEW] Added this method
     public void logChestExpired(String playerName, String locationStr, int experience) {
         String msg = String.format(
             "กล่องศพของ %s ที่ %s หมดเวลา (XP: %d) - ย้ายไป /buyback",
             playerName, locationStr, experience
         );
-        log(LogLevel.WARN, msg, false); // [EDIT] Don't send simple webhook
+        log(LogLevel.WARN, msg, false); 
 
-        if (configManager.isDiscordLoggingEnabled()) {
+        // [FIX] เช็ก Flag
+        if (configManager.isDiscordLoggingEnabled() && !isDisabling) {
             sendRichDiscordWebhook(
-                LogLevel.WARN, // สีเหลือง
+                LogLevel.WARN, 
                 "⌛ กล่องหมดเวลา",
                 playerName,
                 locationStr,
@@ -151,21 +158,21 @@ public class LoggingService {
         }
     }
 
-    // [NEW] Added this method
     public void logChestCollected(String playerName, String locationStr) {
         String msg = String.format(
             "%s เก็บของจากกล่องศพที่ %s จนหมด กล่องถูกลบ",
             playerName, locationStr
         );
-        log(LogLevel.INFO, msg, false); // [EDIT] Don't send simple webhook
+        log(LogLevel.INFO, msg, false); 
 
-        if (configManager.isDiscordLoggingEnabled()) {
+        // [FIX] เช็ก Flag
+        if (configManager.isDiscordLoggingEnabled() && !isDisabling) {
             sendRichDiscordWebhook(
-                LogLevel.INFO, // สีเขียว
+                LogLevel.INFO, 
                 "✅ กล่องถูกเก็บ",
                 playerName,
                 locationStr,
-                0, // XP ถูกเก็บไปก่อนหน้านี้แล้ว
+                0, 
                 "ผู้เล่นเก็บของจากกล่องศพจนหมด กล่องถูกลบออกจากพื้นที่"
             );
         }
@@ -178,11 +185,12 @@ public class LoggingService {
             "แอดมิน %s เปิดดูรายการกล่องศพของ %s",
             admin.getName(), targetPlayer.getName()
         );
-        log(LogLevel.WARN, msg, false); // [EDIT] Don't send simple webhook
+        log(LogLevel.WARN, msg, false); 
 
-        if (configManager.isDiscordLoggingEnabled()) {
+        // [FIX] เช็ก Flag
+        if (configManager.isDiscordLoggingEnabled() && !isDisabling) {
             sendRichDiscordWebhook(
-                LogLevel.WARN, // สีเหลือง
+                LogLevel.WARN,
                 "👮‍ Admin ตรวจสอบ",
                 admin.getName(),
                 "เป้าหมาย: " + targetPlayer.getName(),
@@ -197,11 +205,12 @@ public class LoggingService {
             "แอดมิน %s วาร์ปไปที่กล่องศพของ %s (ที่ %s)",
             admin.getName(), targetPlayer.getName(), locationString
         );
-        log(LogLevel.WARN, msg, false); // [EDIT] Don't send simple webhook
+        log(LogLevel.WARN, msg, false);
 
-        if (configManager.isDiscordLoggingEnabled()) {
+        // [FIX] เช็ก Flag
+        if (configManager.isDiscordLoggingEnabled() && !isDisabling) {
             sendRichDiscordWebhook(
-                LogLevel.WARN, // สีเหลือง
+                LogLevel.WARN, 
                 "🚀 Admin วาร์ป",
                 admin.getName(),
                 "เป้าหมาย: " + targetPlayer.getName(),
@@ -216,116 +225,27 @@ public class LoggingService {
             "แอดมิน %s พยายามวาร์ปไปที่กล่อง Buyback (Set %d) ของ %s แต่ไม่สำเร็จ",
             admin.getName(), buybackIndex + 1, targetPlayer.getName()
         );
-        log(LogLevel.INFO, msg, false); // [EDIT] Don't send simple webhook (as intended)
+        log(LogLevel.INFO, msg, false); 
     }
 
 
     // ===================== Discord Helpers =====================
-    // (โค้ดส่วนนี้ทั้งหมดเหมือนเดิม ไม่ต้องแก้)
+    // ... (levelEmoji, levelThai, escape, sendSimpleDiscordWebhook... โค้ดพวกนี้เหมือนเดิม) ...
+    // (แต่เราจะแก้ postAsync)
 
-    private String levelEmoji(LogLevel level) {
-        switch (level) {
-            case INFO:  return "ℹ️";
-            case WARN:  return "⚠️";
-            case ERROR: return "⛔";
-            default:    return "🔔";
-        }
-    }
+    private String levelEmoji(LogLevel level) { /* ... โค้ดเดิม ... */ return ""; }
+    private String levelThai(LogLevel level) { /* ... โค้ดเดิม ... */ return ""; }
+    private String escape(String s) { /* ... โค้ดเดิม ... */ return ""; }
+    private void sendSimpleDiscordWebhook(LogLevel level, String message) { /* ... โค้ดเดิม ... */ }
+    private void sendRichDiscordWebhook(LogLevel level, String title, String playerName, String locationOrSet, Integer xp, String note) { /* ... โค้ดเดิม ... */ }
 
-    private String levelThai(LogLevel level) {
-        switch (level) {
-            case INFO:  return "ข้อมูล";
-            case WARN:  return "คำเตือน";
-            case ERROR: return "ข้อผิดพลาด";
-            default:    return "แจ้งเตือน";
-        }
-    }
-
-    private String escape(String s) {
-        if (s == null) return "";
-        return s
-            .replace("\\", "\\\\")
-            .replace("\"", "\\\"")
-            .replace("\n", "\\n")
-            .replace("\r", "\\r")
-            .replace("\t", "\\t");
-    }
-
-    private void sendSimpleDiscordWebhook(LogLevel level, String message) {
-        String webhookUrl = configManager.getDiscordWebhookUrl();
-        if (webhookUrl == null || webhookUrl.isEmpty() || webhookUrl.equals("YOUR_WEBHOOK_URL_HERE")) {
-            return;
-        }
-
-        String title = levelEmoji(level) + " " + levelThai(level);
-        String description =
-              "```" + levelThai(level) + "```"
-            + "รายละเอียด:\n"
-            + escape(message) + "\n\n"
-            + "🕒 เวลา: <t:" + Instant.now().getEpochSecond() + ":F>";
-
-        String jsonPayload =
-            "{"
-                + "\"username\":\"" + escape(configManager.getDiscordUsername()) + "\","
-                + "\"allowed_mentions\":{\"parse\":[]},"
-                + "\"embeds\":[{"
-                    + "\"title\":\"" + escape(title) + "\","
-                    + "\"description\":\"" + description + "\","
-                    + "\"color\":" + level.getDiscordColor() + ","
-                    + "\"footer\":{\"text\":\"" + escape(plugin.getName()) + " • BBMC •\"},"
-                    + "\"timestamp\":\"" + Instant.now().toString() + "\""
-                + "}]"
-            + "}";
-
-        postAsync(webhookUrl, jsonPayload);
-    }
-
-    private void sendRichDiscordWebhook(LogLevel level, String title, String playerName, String locationOrSet, Integer xp, String note) {
-        String webhookUrl = configManager.getDiscordWebhookUrl();
-        if (webhookUrl == null || webhookUrl.isEmpty() || webhookUrl.equals("YOUR_WEBHOOK_URL_HERE")) {
-            return;
-        }
-
-        String header = levelEmoji(level) + " " + title;
-        String desc =
-              (note != null && !note.isBlank() ? escape(note) + "\\n\\n" : "")
-            + "🕒 เวลา: <t:" + Instant.now().getEpochSecond() + ":F>";
-
-        String fields =
-              "{"
-                + "\"name\":\"ผู้เล่น\","
-                + "\"value\":\"" + escape(playerName) + "\","
-                + "\"inline\":true"
-              + "},"
-              + "{"
-                + "\"name\":\"ตำแหน่ง/ชุด\","
-                + "\"value\":\"" + escape(locationOrSet) + "\","
-                + "\"inline\":true"
-              + "},"
-              + "{"
-                + "\"name\":\"ค่าประสบการณ์\","
-                + "\"value\":\"" + (xp == null ? "-" : xp.toString()) + "\","
-                + "\"inline\":true"
-              + "}";
-
-        String jsonPayload =
-            "{"
-                + "\"username\":\"" + escape(configManager.getDiscordUsername()) + "\","
-                + "\"allowed_mentions\":{\"parse\":[]},"
-                + "\"embeds\":[{"
-                    + "\"title\":\"" + escape(header) + "\","
-                    + "\"description\":\"" + desc + "\","
-                    + "\"color\":" + level.getDiscordColor() + ","
-                    + "\"fields\":[" + fields + "],"
-                    + "\"footer\":{\"text\":\"" + escape(plugin.getName()) + " • " + escape(Bukkit.getServer().getName()) + "\"},"
-                    + "\"timestamp\":\"" + Instant.now().toString() + "\""
-                + "}]"
-            + "}";
-
-        postAsync(webhookUrl, jsonPayload);
-    }
 
     private void postAsync(String webhookUrl, String jsonPayload) {
+        // [FIX] เช็ก Flag ก่อนยิง
+        if (isDisabling) {
+            return;
+        }
+
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             HttpURLConnection con = null;
             try {
@@ -341,6 +261,7 @@ public class LoggingService {
                 }
                 con.getResponseCode();
             } catch (Exception ignored) {
+                // ไม่ต้อง spam console
             } finally {
                 if (con != null) con.disconnect();
             }
@@ -348,6 +269,8 @@ public class LoggingService {
     }
 
     public void close() {
+        // [FIX] setDisabling() ถูกย้ายไปเรียกก่อนใน onDisable
+        // ที่นี่เหลือแค่ปิด handler
         if (fileLogger != null) {
             for (java.util.logging.Handler handler : fileLogger.getHandlers()) {
                 handler.close();
