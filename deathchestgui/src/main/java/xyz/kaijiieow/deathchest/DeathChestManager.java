@@ -212,7 +212,7 @@ public class DeathChestManager {
                         playerChestMap.get(ownerUuid).add(key);
                         
                         // [FIX] เพิ่ม 1 วินาที (Grace Period) ให้กล่องที่เพิ่งโหลด
-                        data.timeLeft = dbChest.remainingSeconds + 1;
+                        data.timeLeft = dbChest.remainingSeconds + 6;
                         
                     } catch (Exception e) {
                         logger.log(LogLevel.ERROR, "ไม่สามารถโหลด Active Chest (Staggered): " + e.getMessage());
