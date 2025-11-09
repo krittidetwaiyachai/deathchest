@@ -57,7 +57,7 @@ public class DeathChestManager {
                 }
 
                 List<BlockLocation> chestsToRemove = new ArrayList<>();
-                boolean showParticles = configManager.isShowParticles(); // [FIX 5.3] โหลด config ทีเดียวก่อน loop
+                boolean showParticles = configManager.isShowParticles(); 
 
                 for (Map.Entry<BlockLocation, DeathChestData> entry : activeChests.entrySet()) {
                     BlockLocation key = entry.getKey();
@@ -69,27 +69,32 @@ public class DeathChestManager {
                         continue; 
                     }
 
+                    // [FIX] 1. ลดเวลาก่อน
+                    data.timeLeft--; 
+
+                    // [FIX] 2. ค่อยเช็กว่าหมดเวลารึยัง
                     if (data.timeLeft <= 0) {
                         chestsToRemove.add(key); 
-                        continue; 
+                        continue; // หมดเวลา, ไม่ต้องอัปเดต Particle/Hologram
                     }
 
-                    // [FIX 5.3] เช็ก config และลดจำนวน Particle
+                    // [FIX] 3. ถ้ายังไม่หมดเวลา ก็อัปเดต Particle
                     if (showParticles) {
                         try {
                             World world = Bukkit.getWorld(key.worldName());
                             if (world != null) {
                                 Location center = new Location(world, key.x() + 0.5, key.y() + 0.5, key.z() + 0.5);
-                                world.spawnParticle(particleSoulFireFlame, center, 5, 0.5, 0.5, 0.5, 0.02); // ลดจาก 10
+                                world.spawnParticle(particleSoulFireFlame, center, 5, 0.5, 0.5, 0.5, 0.02); 
                                 world.spawnParticle(Particle.TOTEM, center.clone().add(0, 0.5, 0), 1, 0.3, 0.5, 0.3, 0.1);
-                                world.spawnParticle(particleElectricSpark, center, 2, 0.5, 0.5, 0.5, 0.05); // ลดจาก 5
-                                world.spawnParticle(particleSculkSoul, center, 1, 0.5, 0.5, 0.5, 0.02); // ลดจาก 2
+                                world.spawnParticle(particleElectricSpark, center, 2, 0.5, 0.5, 0.5, 0.05); 
+                                world.spawnParticle(particleSculkSoul, center, 1, 0.5, 0.5, 0.5, 0.02); 
                             }
                         } catch (Exception e) {
                             logger.log(LogLevel.WARN, "เกิดข้อผิดพลาดตอนสร้าง Particle: " + e.getMessage());
                         }
                     }
 
+                    // [FIX] 4. อัปเดต Hologram
                     int minutes = data.timeLeft / 60;
                     int seconds = data.timeLeft % 60;
                     
@@ -117,9 +122,10 @@ public class DeathChestManager {
                     }
                     data.hologramEntity.setText(hologramStringBuilder.toString());
 
-                    data.timeLeft--;
+                    // [FIX] ลบ data.timeLeft-- ออกจากตรงนี้
                 }
 
+                // 5. ลบกล่องที่หมดเวลา
                 for (BlockLocation keyToRemove : chestsToRemove) {
                     DeathChestData dataToRemove = activeChests.get(keyToRemove);
                     if (dataToRemove != null) {
@@ -129,6 +135,8 @@ public class DeathChestManager {
             }
         }.runTaskTimer(plugin, 20L, 20L);
     }
+    
+    // (โค้ดส่วนที่เหลือของไฟล์นี้เหมือนเดิม... )
     
     public void staggerLoadChests(List<DatabaseChestData> dbChests) {
         if (dbChests.isEmpty()) {
@@ -207,7 +215,7 @@ public class DeathChestManager {
                             holo.setBillboard(Display.Billboard.CENTER);
                             holo.setGlowing(true);
                             holo.setGlowColorOverride(Color.YELLOW);
-                            holo.setViewRange(32.0f); // [FIX 5.1] เพิ่มระยะมองเห็น
+                            holo.setViewRange(32.0f); // [FIX 5.1]
                         });
                         
                         DeathChestData data = new DeathChestData(
@@ -298,7 +306,7 @@ public class DeathChestManager {
             holo.setBillboard(Display.Billboard.CENTER);
             holo.setGlowing(true);
             holo.setGlowColorOverride(Color.YELLOW);
-            holo.setViewRange(32.0f); // [FIX 5.1] เพิ่มระยะมองเห็น
+            holo.setViewRange(32.0f); // [FIX 5.1]
         });
         
         long creationTime = System.currentTimeMillis(); 
