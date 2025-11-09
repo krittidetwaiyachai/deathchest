@@ -48,7 +48,6 @@ public class DeathChestManager {
         this.databaseManager = databaseManager;
     }
     
-    // (GlobalTimer - โค้ดนี้ถูกแล้วจากรอบที่แล้ว)
     public void startGlobalTimer() {
         new BukkitRunnable() {
             @Override
@@ -56,7 +55,6 @@ public class DeathChestManager {
                 if (activeChests.isEmpty()) {
                     return;
                 }
-
                 List<BlockLocation> chestsToRemove = new ArrayList<>();
                 boolean showParticles = configManager.isShowParticles(); 
 
@@ -135,7 +133,14 @@ public class DeathChestManager {
         }.runTaskTimer(plugin, 20L, 20L);
     }
     
-    // [FIX] แก้ไขใน staggerLoadChests
+    // [FIX] ลบเมธอด 'loadActiveChestsFromDatabase' (ตัวเก่า) ทิ้งไปเลย
+    /*
+    public void loadActiveChestsFromDatabase() {
+        // ... โค้ดเก่าทั้งหมด ...
+    }
+    */
+
+    // [FIX] นี่คือเมธอดใหม่ที่ 'DeathChestPlugin' จะเรียก
     public void staggerLoadChests(List<DatabaseChestData> dbChests) {
         if (dbChests.isEmpty()) {
             return;
@@ -211,8 +216,9 @@ public class DeathChestManager {
                         playerChestMap.putIfAbsent(ownerUuid, new ArrayList<>());
                         playerChestMap.get(ownerUuid).add(key);
                         
-                        // [FIX] เพิ่ม 1 วินาที (Grace Period) ให้กล่องที่เพิ่งโหลด
-                        data.timeLeft = dbChest.remainingSeconds + 6;
+                        // [FIX] เพิ่ม 3 วินาที (Grace Period)
+                        // (ถ้า +6 แล้วยังบั๊ก แสดงว่ามึงไม่ได้ Compile ไฟล์นี้)
+                        data.timeLeft = dbChest.remainingSeconds + 6; 
                         
                     } catch (Exception e) {
                         logger.log(LogLevel.ERROR, "ไม่สามารถโหลด Active Chest (Staggered): " + e.getMessage());
