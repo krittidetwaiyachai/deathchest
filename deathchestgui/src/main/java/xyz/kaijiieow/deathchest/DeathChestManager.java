@@ -64,7 +64,6 @@ public class DeathChestManager {
                     BlockLocation key = entry.getKey();
                     DeathChestData data = entry.getValue();
 
-                    // [FIX] นี่คือจุดที่บั๊ก (จาก Log)
                     if (data.hologramEntity == null || !data.hologramEntity.isValid()) {
                         logger.log(LoggingService.LogLevel.WARN, "โฮโลแกรมของ " + data.ownerName + " หาย! (อาจโดน /kill) ทำการลบกล่อง...");
                         chestsToRemove.add(key);
@@ -136,15 +135,7 @@ public class DeathChestManager {
         }.runTaskTimer(plugin, 20L, 20L); // Timer นี้จะเริ่มทำงาน (ตามโค้ดใหม่) หลัง 5 วิ
     }
     
-    // [FIX] ลบเมธอด 'loadActiveChestsFromDatabase' (ตัวเก่า) ทิ้งไปเลย
-    // (ไฟล์ '3772...' ของมึงยังมีเมธอดนี้อยู่ ซึ่งมันคือบั๊ก)
-    /*
-    public void loadActiveChestsFromDatabase() {
-        // ... โค้ดเก่าทั้งหมด ...
-    }
-    */
-
-    // [FIX] นี่คือเมธอดใหม่ที่ 'DeathChestPlugin' จะเรียก
+    // [FIX] แก้ไขใน staggerLoadChests
     public void staggerLoadChests(List<DatabaseChestData> dbChests) {
         if (dbChests.isEmpty()) {
             return;
@@ -200,6 +191,38 @@ public class DeathChestManager {
                         }
                         String locationStr = String.format("%d, %d, %d", loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
                         Location hologramLoc = loc.clone().add(0.5, configManager.getHologramYOffset(), 0.5);
+
+                        // [FIX] เพิ่ม Grace Period 3 วิ (กันเหนียว)
+                        final int timeLeft = dbChest.remainingSeconds + 3;
+
+                        // [FIX] คำนวณ Text *ก่อน* spawn
+                        int minutes = timeLeft / 60;
+                        int seconds = timeLeft % 60;
+                        final String timeString;
+                        if (minutes > 0) {
+                            timeString = minutes + " นาที " + seconds;
+                        } else {
+                            timeString = String.valueOf(timeLeft);
+                        }
+                        
+                        hologramStringBuilder.setLength(0);
+                        List<String> lines = configManager.getHologramLines();
+                        for (int j = 0; j < lines.size(); j++) {
+                            String line = lines.get(j);
+                            line = line.replace("&", "§")
+                                    .replace("%player%", ownerName)
+                                    .replace("%time%", timeString)
+                                    .replace("%xp%", String.valueOf(dbChest.experience))
+                                    .replace("%coords%", locationStr);
+                            
+                            hologramStringBuilder.append(line);
+                            if (j < lines.size() - 1) { 
+                                hologramStringBuilder.append("\n"); 
+                            }
+                        }
+                        final String initialText = hologramStringBuilder.toString();
+                        // --- จบการคำนวณ Text ---
+
                         TextDisplay hologram = world.spawn(hologramLoc, TextDisplay.class, (holo) -> {
                             holo.setGravity(false);
                             holo.setPersistent(false);
@@ -210,18 +233,22 @@ public class DeathChestManager {
                             holo.setGlowing(true);
                             holo.setGlowColorOverride(Color.YELLOW);
                             holo.setViewRange(32.0f);
+                            
+                            // [FIX] ตั้งค่า Text ทันที!! (กัน GC ลบ)
+                            holo.setText(initialText);
                         });
+                        
                         DeathChestData data = new DeathChestData(
                             ownerUuid, ownerName, chest, hologram, items, dbChest.experience,
                             locationStr, dbChest.world, dbChest.x, dbChest.y, dbChest.z, dbChest.createdAt
                         );
+
                         BlockLocation key = new BlockLocation(data.worldName, data.x, data.y, data.z);
                         activeChests.put(key, data);
                         playerChestMap.putIfAbsent(ownerUuid, new ArrayList<>());
                         playerChestMap.get(ownerUuid).add(key);
                         
-                        // [FIX] เพิ่ม 3 วินาที (Grace Period)
-                        data.timeLeft = dbChest.remainingSeconds + 3; 
+                        data.timeLeft = timeLeft; // [FIX] ใช้ timeLeft ที่บวก 3 วิแล้ว
                         
                     } catch (Exception e) {
                         logger.log(LogLevel.ERROR, "ไม่สามารถโหลด Active Chest (Staggered): " + e.getMessage());
@@ -282,6 +309,36 @@ public class DeathChestManager {
         player.getInventory().clear();
         Location hologramLoc = blockLoc.clone().add(0.5, configManager.getHologramYOffset(), 0.5);
         String locationStr = String.format("%d, %d, %d", blockLoc.getBlockX(), blockLoc.getBlockY(), blockLoc.getBlockZ());
+        
+        // [FIX] ตั้งค่า Text ทันที (ตอนคนตาย)
+        int initialTime = configManager.getDespawnTime();
+        int minutes = initialTime / 60;
+        int seconds = initialTime % 60;
+        final String timeString;
+        if (minutes > 0) {
+            timeString = minutes + " นาที " + seconds;
+        } else {
+            timeString = String.valueOf(initialTime);
+        }
+        
+        hologramStringBuilder.setLength(0);
+        List<String> lines = configManager.getHologramLines();
+        for (int j = 0; j < lines.size(); j++) {
+            String line = lines.get(j);
+            line = line.replace("&", "§")
+                    .replace("%player%", player.getName())
+                    .replace("%time%", timeString)
+                    .replace("%xp%", String.valueOf(totalExp))
+                    .replace("%coords%", locationStr);
+            
+            hologramStringBuilder.append(line);
+            if (j < lines.size() - 1) { 
+                hologramStringBuilder.append("\n"); 
+            }
+        }
+        final String initialText = hologramStringBuilder.toString();
+        // --- จบการคำนวณ Text ---
+        
         TextDisplay hologram = player.getWorld().spawn(hologramLoc, TextDisplay.class, (holo) -> {
             holo.setGravity(false);
             holo.setPersistent(false);
@@ -292,7 +349,9 @@ public class DeathChestManager {
             holo.setGlowing(true);
             holo.setGlowColorOverride(Color.YELLOW);
             holo.setViewRange(32.0f); 
+            holo.setText(initialText); // [FIX] ตั้งค่า Text ทันที
         });
+        
         long creationTime = System.currentTimeMillis(); 
         DeathChestData data = new DeathChestData(
             player.getUniqueId(), player.getName(), chest, hologram, 
@@ -304,8 +363,9 @@ public class DeathChestManager {
         activeChests.put(key, data);
         playerChestMap.putIfAbsent(player.getUniqueId(), new ArrayList<>());
         playerChestMap.get(player.getUniqueId()).add(key); 
-        int initialTime = configManager.getDespawnTime();
-        data.timeLeft = initialTime;
+        
+        data.timeLeft = initialTime; // [FIX] ใช้ initialTime (ไม่ต้อง +3)
+        
         new BukkitRunnable() {
             @Override
             public void run() {
