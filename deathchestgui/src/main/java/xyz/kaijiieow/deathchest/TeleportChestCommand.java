@@ -1,16 +1,17 @@
 package xyz.kaijiieow.deathchest;
 
+import org.bukkit.Bukkit; // [FIX]
 import org.bukkit.Location;
+import org.bukkit.World; // [FIX]
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;
-import java.util.List; // [NEW]
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 public class TeleportChestCommand implements CommandExecutor {
 
@@ -26,55 +27,53 @@ public class TeleportChestCommand implements CommandExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player)) {
-            sender.sendMessage("ต้องเป็นผู้เล่นเท่านั้น");
+            sender.sendMessage("คำสั่งนี้ใช้ได้เฉพาะผู้เล่นเท่านั้น");
             return true;
         }
 
         Player player = (Player) sender;
-
-        if (!player.hasPermission("deathchest.tp")) {
+        if (!player.hasPermission("deathchest.tpchest")) {
             player.sendMessage(configManager.getChatMessageNoPermission().replace("&", "§"));
             return true;
         }
 
-        if (!player.hasPermission("deathchest.tp.bypass")) {
-            long cooldownSeconds = configManager.getTpChestCooldown();
-            if (cooldowns.containsKey(player.getUniqueId())) {
-                long lastUsed = cooldowns.get(player.getUniqueId());
-                long timeElapsed = System.currentTimeMillis() - lastUsed;
-                long timeRemaining = TimeUnit.SECONDS.toMillis(cooldownSeconds) - timeElapsed;
-
-                if (timeRemaining > 0) {
-                    long secondsRemaining = TimeUnit.MILLISECONDS.toSeconds(timeRemaining) + 1; 
-                    player.sendMessage(
-                        configManager.getChatMessageTeleportCooldown()
-                            .replace("&", "§")
-                            .replace("%time%", String.valueOf(secondsRemaining))
-                    );
-                    return true;
-                }
-            }
-        }
-
-        // [EDIT] Get list of chests
-        List<Location> chestLocs = deathChestManager.getActiveChestLocations(player.getUniqueId());
-
-        if (chestLocs == null || chestLocs.isEmpty()) {
+        // [FIX] เปลี่ยนจาก List<Location> เป็น List<BlockLocation>
+        List<BlockLocation> chestLocations = deathChestManager.getActiveChestLocations(player.getUniqueId());
+        if (chestLocations.isEmpty()) {
             player.sendMessage(configManager.getChatMessageNoChestFound().replace("&", "§"));
             return true;
         }
-        
-        // [EDIT] Get the most recent chest
-        Location chestLoc = chestLocs.get(chestLocs.size() - 1); 
 
-        Location safeLoc = chestLoc.clone().add(0.5, 1.0, 0.5);
-        player.teleport(safeLoc);
-        player.sendMessage(configManager.getChatMessageTeleported().replace("&", "§"));
-        
-        if (!player.hasPermission("deathchest.tp.bypass")) {
-            cooldowns.put(player.getUniqueId(), System.currentTimeMillis()); 
+        long currentTime = System.currentTimeMillis();
+        long cooldownTime = configManager.getTpChestCooldown() * 1000L;
+        if (cooldowns.containsKey(player.getUniqueId())) {
+            long lastUsed = cooldowns.get(player.getUniqueId());
+            long remaining = (lastUsed + cooldownTime) - currentTime;
+            if (remaining > 0) {
+                player.sendMessage(configManager.getChatMessageTeleportCooldown()
+                        .replace("&", "§")
+                        .replace("%time%", String.valueOf(remaining / 1000 + 1))
+                );
+                return true;
+            }
         }
-        
+
+        // [FIX] แปลง BlockLocation (Key) กลับเป็น Location (สำหรับวาร์ป)
+        BlockLocation key = chestLocations.get(0); // เอาอันแรกสุด
+        World world = Bukkit.getWorld(key.worldName());
+
+        if (world == null) {
+            player.sendMessage("§cError: ไม่สามารถหาโลกของกล่องศพได้ (โลกอาจจะยังไม่ได้โหลด)");
+            return true;
+        }
+
+        // สร้าง Location ตรงกลางบล็อก และสูงขึ้นมา 1 บล็อก (กันจม)
+        Location tpLoc = new Location(world, key.x() + 0.5, key.y() + 1.0, key.z() + 0.5);
+
+        player.teleport(tpLoc);
+        player.sendMessage(configManager.getChatMessageTeleported().replace("&", "§"));
+        cooldowns.put(player.getUniqueId(), currentTime);
+
         return true;
     }
 }

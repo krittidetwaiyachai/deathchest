@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.World; // [FIX] Import World
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -127,7 +128,8 @@ public class GuiManager {
         adminViewing.put(admin.getUniqueId(), targetUUID);
         playerPages.put(admin.getUniqueId(), page);
 
-        List<Location> chestLocations = plugin.getDeathChestManager().getActiveChestLocations(targetUUID);
+        // [FIX] เปลี่ยนจาก List<Location> เป็น List<BlockLocation>
+        List<BlockLocation> chestLocations = plugin.getDeathChestManager().getActiveChestLocations(targetUUID);
         List<DeathDataPackage> buybackItems = storageManager.getLostItems(targetUUID);
 
         int totalActiveChests = (chestLocations != null) ? chestLocations.size() : 0; // Fix NPE
@@ -160,8 +162,10 @@ public class GuiManager {
 
             if (i < totalActiveChests) {
                 // This is an Active Chest
-                Location loc = chestLocations.get(i);
-                DeathChestData data = plugin.getDeathChestManager().getActiveChestAt(loc);
+                // [FIX] เปลี่ยน loc เป็น key
+                BlockLocation key = chestLocations.get(i);
+                // [FIX] ใช้ key ในการ get
+                DeathChestData data = plugin.getDeathChestManager().getActiveChestAt(key);
 
                 if (data == null) continue; 
 
@@ -264,7 +268,9 @@ public class GuiManager {
         OfflinePlayer targetPlayer = Bukkit.getOfflinePlayer(targetUUID); // Get target player for logging
 
         int index = (currentPage * ITEMS_PER_PAGE) + slot;
-        List<Location> chestLocations = plugin.getDeathChestManager().getActiveChestLocations(targetUUID);
+        
+        // [FIX] เปลี่ยนเป็น BlockLocation
+        List<BlockLocation> chestLocations = plugin.getDeathChestManager().getActiveChestLocations(targetUUID);
         int totalActiveChests = (chestLocations != null) ? chestLocations.size() : 0;
 
         if (index < totalActiveChests) {
@@ -275,17 +281,25 @@ public class GuiManager {
                 return;
             }
 
-            Location targetLoc = chestLocations.get(index);
-            // [LOGGING FIX] Get location string from data
-            DeathChestData data = plugin.getDeathChestManager().getActiveChestAt(targetLoc);
-            String locationString = (data != null) ? data.locationString : "N/A";
+            // [FIX] แปลง BlockLocation (Key) กลับเป็น Location (สำหรับวาร์ป)
+            BlockLocation targetKey = chestLocations.get(index);
+            World world = Bukkit.getWorld(targetKey.worldName());
+            if (world == null) {
+                admin.sendMessage("§cเกิดข้อผิดพลาด: ไม่สามารถหาโลกของกล่องศพได้ (โลกอาจจะยังไม่ได้โหลด)");
+                admin.closeInventory();
+                return;
+            }
 
-            Location safeLoc = targetLoc.clone().add(0.5, 1.0, 0.5);
+            // [FIX] Get data โดยใช้ Key
+            DeathChestData data = plugin.getDeathChestManager().getActiveChestAt(targetKey);
+            String locationString = (data != null) ? data.locationString : "N/A";
+            
+            // [FIX] สร้าง Location สำหรับวาร์ปจาก Key
+            Location safeLoc = new Location(world, targetKey.x() + 0.5, targetKey.y() + 1.0, targetKey.z() + 0.5);
             
             admin.teleport(safeLoc);
             admin.sendMessage(configManager.getChatMessageAdminTeleported().replace("&", "§"));
             
-            // [LOGGING FIX] Log TP success
             logger.logAdminTpSuccess(admin, targetPlayer, locationString);
             
             admin.closeInventory();
@@ -293,7 +307,6 @@ public class GuiManager {
             // It's a buyback item, send message
             int buybackIndex = index - totalActiveChests;
             
-            // [LOGGING FIX] Log TP fail
             logger.logAdminTpFailBuyback(admin, targetPlayer, buybackIndex);
 
             admin.sendMessage(configManager.getChatMessageAdminIsBuyback().replace("&", "§"));
