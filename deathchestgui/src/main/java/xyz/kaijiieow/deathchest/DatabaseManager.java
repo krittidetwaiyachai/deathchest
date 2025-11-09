@@ -116,7 +116,7 @@ public class DatabaseManager {
     public void close() {
         if (dataSource != null && !dataSource.isClosed()) {
             dataSource.close();
-            logger.log(LoggingService.LogLevel.INFO, "ปิดการเชื่อมต่อ Database pool");
+            plugin.getLogger().info("ปิดการเชื่อมต่อ Database pool");
         }
     }
 
