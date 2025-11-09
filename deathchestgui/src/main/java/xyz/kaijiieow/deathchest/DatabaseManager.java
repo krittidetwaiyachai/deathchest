@@ -192,7 +192,7 @@ public class DatabaseManager {
     }
 
     public void updateChestTime(int x, int y, int z, int remainingSeconds, String worldName) {
-        logger.log(LoggingService.LogLevel.INFO, String.format("กำลังอัปเดตเวลา: W=%s, X=%d, Y=%d, Z=%d, Time=%d", worldName, x, y, z, remainingSeconds));
+        plugin.getLogger().info(String.format("กำลังอัปเดตเวลา: W=%s, X=%d, Y=%d, Z=%d, Time=%d", worldName, x, y, z, remainingSeconds));
         
         String sql = "UPDATE active_chests SET remaining_seconds = ? WHERE world = ? AND x = ? AND y = ? AND z = ?";
         try (Connection conn = getConnection();
@@ -206,13 +206,13 @@ public class DatabaseManager {
             int rowsAffected = ps.executeUpdate(); 
 
             if (rowsAffected == 0) {
-                 logger.log(LoggingService.LogLevel.WARN, String.format("UpdateChestTime ไม่พบแถวที่จะอัปเดต: W=%s, X=%d, Y=%d, Z=%d", worldName, x, y, z));
+                 plugin.getLogger().warning(String.format("UpdateChestTime ไม่พบแถวที่จะอัปเดต: W=%s, X=%d, Y=%d, Z=%d", worldName, x, y, z));
             } else {
-                 logger.log(LoggingService.LogLevel.INFO, String.format("UpdateChestTime อัปเดต %d แถว สำเร็จ", rowsAffected));
+                 plugin.getLogger().info(String.format("UpdateChestTime อัปเดต %d แถว สำเร็จ", rowsAffected));
             }
 
         } catch (Exception e) { 
-            logger.log(LoggingService.LogLevel.ERROR, "ไม่สามารถอัปเดตเวลา Active Chest ใน DB: " + e.getMessage());
+            plugin.getLogger().severe("ไม่สามารถอัปเดตเวลา Active Chest ใน DB: " + e.getMessage());
             e.printStackTrace(); 
         }
     }

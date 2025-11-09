@@ -352,7 +352,7 @@ public class DeathChestManager {
         if (activeChests.isEmpty()) {
             return;
         }
-        logger.log(LogLevel.INFO, "กำลังเซฟเวลาที่เหลือของ Active Chests " + activeChests.size() + " กล่อง...");
+        plugin.getLogger().info("กำลังเซฟเวลาที่เหลือของ Active Chests " + activeChests.size() + " กล่อง...");
         
         for (DeathChestData data : activeChests.values()) {
             
@@ -366,7 +366,7 @@ public class DeathChestManager {
         if (activeChests.isEmpty()) {
             return;
         }
-        logger.log(LogLevel.INFO, "กำลังลบ Holograms " + activeChests.size() + " อัน (ตอนปิดเซิร์ฟ)...");
+        plugin.getLogger().info("กำลังลบ Holograms " + activeChests.size() + " อัน (ตอนปิดเซิร์ฟ)...");
         for (DeathChestData data : activeChests.values()) {
             if (data.hologramEntity != null && data.hologramEntity.isValid()) {
                 data.hologramEntity.remove();
