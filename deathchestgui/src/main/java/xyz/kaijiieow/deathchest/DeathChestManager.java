@@ -48,7 +48,7 @@ public class DeathChestManager {
         this.databaseManager = databaseManager;
     }
     
-    // [FIX] แก้ไข Logic ใน GlobalTimer
+    // (GlobalTimer - โค้ดนี้ถูกแล้วจากรอบที่แล้ว)
     public void startGlobalTimer() {
         new BukkitRunnable() {
             @Override
@@ -70,13 +70,13 @@ public class DeathChestManager {
                         continue; 
                     }
 
-                    // [FIX] 1. เช็กก่อนว่าหมดเวลารึยัง
+                    // 1. เช็กก่อนว่าหมดเวลารึยัง
                     if (data.timeLeft <= 0) {
                         chestsToRemove.add(key); 
-                        continue; // หมดเวลา, ไม่ต้องอัปเดต
+                        continue; 
                     }
 
-                    // [FIX] 2. ถ้ายังไม่หมดเวลา -> อัปเดต Particle (แสดงเวลาปัจจุบัน)
+                    // 2. ถ้ายังไม่หมดเวลา -> อัปเดต Particle (แสดงเวลาปัจจุบัน)
                     if (showParticles) {
                         try {
                             World world = Bukkit.getWorld(key.worldName());
@@ -92,7 +92,7 @@ public class DeathChestManager {
                         }
                     }
 
-                    // [FIX] 3. อัปเดต Hologram (แสดงเวลาปัจจุบัน)
+                    // 3. อัปเดต Hologram (แสดงเวลาปัจจุบัน)
                     int minutes = data.timeLeft / 60;
                     int seconds = data.timeLeft % 60;
                     
@@ -120,7 +120,7 @@ public class DeathChestManager {
                     }
                     data.hologramEntity.setText(hologramStringBuilder.toString());
 
-                    // [FIX] 4. ลดเวลา (สำหรับ tick หน้า)
+                    // 4. ลดเวลา (สำหรับ tick หน้า)
                     data.timeLeft--;
                 }
 
@@ -135,8 +135,7 @@ public class DeathChestManager {
         }.runTaskTimer(plugin, 20L, 20L);
     }
     
-    // (โค้ดส่วนที่เหลือของไฟล์นี้เหมือนเดิม ไม่ต้องแตะ)
-    
+    // [FIX] แก้ไขใน staggerLoadChests
     public void staggerLoadChests(List<DatabaseChestData> dbChests) {
         if (dbChests.isEmpty()) {
             return;
@@ -211,7 +210,10 @@ public class DeathChestManager {
                         activeChests.put(key, data);
                         playerChestMap.putIfAbsent(ownerUuid, new ArrayList<>());
                         playerChestMap.get(ownerUuid).add(key);
-                        data.timeLeft = dbChest.remainingSeconds;
+                        
+                        // [FIX] เพิ่ม 1 วินาที (Grace Period) ให้กล่องที่เพิ่งโหลด
+                        data.timeLeft = dbChest.remainingSeconds + 1;
+                        
                     } catch (Exception e) {
                         logger.log(LogLevel.ERROR, "ไม่สามารถโหลด Active Chest (Staggered): " + e.getMessage());
                         e.printStackTrace();
@@ -221,25 +223,19 @@ public class DeathChestManager {
         }.runTaskTimer(plugin, 1L, 1L);
     }
 
+    // (โค้ดส่วนที่เหลือของไฟล์นี้เหมือนเดิม ไม่ต้องแตะ)
+    // ...
     public DeathChestData getActiveChestAt(Block block) {
         if (block == null) return null;
         BlockLocation key = new BlockLocation(block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
         return activeChests.get(key);
     }
-    
-    public DeathChestData getActiveChestAt(BlockLocation key) {
-        return activeChests.get(key);
-    }
-
+    public DeathChestData getActiveChestAt(BlockLocation key) { return activeChests.get(key); }
     public DeathChestData getActiveChestAt(Location loc) {
         BlockLocation key = new BlockLocation(loc.getWorld().getName(), loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
         return activeChests.get(key);
     }
-
-    public List<BlockLocation> getActiveChestLocations(UUID playerId) {
-        return playerChestMap.getOrDefault(playerId, new ArrayList<>());
-    }
-
+    public List<BlockLocation> getActiveChestLocations(UUID playerId) { return playerChestMap.getOrDefault(playerId, new ArrayList<>()); }
     public void createDeathChest(PlayerDeathEvent event) {
         Player player = event.getEntity();
         Location deathLoc = player.getLocation();
@@ -277,7 +273,6 @@ public class DeathChestManager {
         player.getInventory().clear();
         Location hologramLoc = blockLoc.clone().add(0.5, configManager.getHologramYOffset(), 0.5);
         String locationStr = String.format("%d, %d, %d", blockLoc.getBlockX(), blockLoc.getBlockY(), blockLoc.getBlockZ());
-        
         TextDisplay hologram = player.getWorld().spawn(hologramLoc, TextDisplay.class, (holo) -> {
             holo.setGravity(false);
             holo.setPersistent(false);
@@ -289,7 +284,6 @@ public class DeathChestManager {
             holo.setGlowColorOverride(Color.YELLOW);
             holo.setViewRange(32.0f); 
         });
-        
         long creationTime = System.currentTimeMillis(); 
         DeathChestData data = new DeathChestData(
             player.getUniqueId(), player.getName(), chest, hologram, 
@@ -297,23 +291,18 @@ public class DeathChestManager {
             player.getWorld().getName(), blockLoc.getBlockX(), blockLoc.getBlockY(), blockLoc.getBlockZ(),
             creationTime
         );
-
         BlockLocation key = new BlockLocation(data.worldName, data.x, data.y, data.z);
         activeChests.put(key, data);
-        
         playerChestMap.putIfAbsent(player.getUniqueId(), new ArrayList<>());
         playerChestMap.get(player.getUniqueId()).add(key); 
-
         int initialTime = configManager.getDespawnTime();
         data.timeLeft = initialTime;
-        
         new BukkitRunnable() {
             @Override
             public void run() {
                 databaseManager.saveActiveChest(data, initialTime, creationTime);
             }
         }.runTaskAsynchronously(plugin);
-
         player.sendMessage(configManager.getChatMessageDeath()
             .replace("&", "§")
             .replace("%coords%", locationStr)
@@ -321,7 +310,6 @@ public class DeathChestManager {
         );
         logger.logDeath(player, locationStr, totalExp);
     }
-
     private void removeChestFromWorld(BlockLocation key, DeathChestData data) {
         if (data == null) {
             data = activeChests.get(key);
@@ -343,7 +331,6 @@ public class DeathChestManager {
             playerChests.remove(key);
         }
     }
-    
     private void processChestDatabase(BlockLocation key, DeathChestData data, boolean moveToBuyback) {
         World world = Bukkit.getWorld(key.worldName());
         if (world == null) {
@@ -370,7 +357,6 @@ public class DeathChestManager {
             }
         }
     }
-
     public void removeChest(BlockLocation key, DeathChestData data, boolean moveToBuyback) {
         if (!Bukkit.isPrimaryThread()) {
             new BukkitRunnable() {
@@ -389,7 +375,6 @@ public class DeathChestManager {
             }
         }.runTaskAsynchronously(plugin);
     }
-
     public void cleanupAllChests() {
         if (activeChests.isEmpty()) {
             return;
@@ -399,7 +384,6 @@ public class DeathChestManager {
             removeChest(entry.getKey(), entry.getValue(), false);
         }
     }
-
     public void saveAllChestTimes() {
         if (activeChests.isEmpty()) {
             return;
@@ -407,7 +391,6 @@ public class DeathChestManager {
         plugin.getLogger().info("กำลังเซฟเวลาที่เหลือของ Active Chests " + activeChests.size() + " กล่อง (แบบ Batch)...");
         databaseManager.batchUpdateChestTimes(activeChests);
     }
-
     public void cleanupEntitiesOnDisable() {
         if (activeChests.isEmpty()) {
             return;
@@ -421,7 +404,6 @@ public class DeathChestManager {
         activeChests.clear();
         playerChestMap.clear();
     }
-
     private Particle resolveParticle(String particleName, Particle fallback) {
         try {
             return Particle.valueOf(particleName);
