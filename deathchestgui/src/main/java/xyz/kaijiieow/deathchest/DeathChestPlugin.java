@@ -41,10 +41,10 @@ public class DeathChestPlugin extends JavaPlugin {
         this.deathChestManager = new DeathChestManager(this, configManager, storageManager, loggingService, databaseManager);
         this.guiManager = new GuiManager(this, configManager, hookManager, storageManager, loggingService);
         
-        // [FIX 2.1] สั่งเริ่ม Global Timer
-        this.deathChestManager.startGlobalTimer();
+        // [FIX] ห้าม!! สตาร์ท Timer ทันที
+        // this.deathChestManager.startGlobalTimer(); // <--- ห้าม!!
         
-        // [FIX] แก้ชื่อเมธอดให้ถูก (จาก Error ที่แล้ว)
+        // [FIX] แก้ชื่อเมธอดให้ถูก
         this.storageManager.loadBuybackItemsFromDatabase(); 
 
         // [FIX] ลบโค้ด 'runTaskLater' เก่าของมึงทิ้ง
@@ -79,6 +79,16 @@ public class DeathChestPlugin extends JavaPlugin {
         // [FIX] แก้ constructor ของ AdminChestCommand
         getCommand("dctp").setExecutor(new AdminChestCommand(guiManager, configManager, loggingService, deathChestManager)); 
 
+        // [FIX] หน่วงเวลา GlobalTimer 5 วินาที (100 tick)
+        // รอให้เซิร์ฟหายแลค และ staggerLoadChests สร้าง Hologram ให้เสร็จก่อน
+        new org.bukkit.scheduler.BukkitRunnable() {
+            @Override
+            public void run() {
+                loggingService.log(LoggingService.LogLevel.INFO, "Global Timer กำลังจะเริ่มทำงาน...");
+                deathChestManager.startGlobalTimer();
+            }
+        }.runTaskLater(this, 100L); // 100 tick = 5 วินาที
+
         loggingService.log(LoggingService.LogLevel.INFO, "DeathChestGUI (Refactored) เปิดใช้งานแล้ว!");
     }
 
@@ -96,7 +106,7 @@ public class DeathChestPlugin extends JavaPlugin {
             
             // 2. เซฟเวลาก่อน (สำคัญสุด)
             getLogger().info("กำลังเซฟเวลาที่เหลือของกล่องศพ (Batch)...");
-            deathChestManager.saveAllChestTimes(); // <--- ตอนนี้มันจะ Log แบบ Sync
+            deathChestManager.saveAllChestTimes(); 
             
             // 3. ลบ entities (holograms) ทิ้ง
             getLogger().info("กำลังล้าง entities (holograms)...");

@@ -48,6 +48,7 @@ public class DeathChestManager {
         this.databaseManager = databaseManager;
     }
     
+    // (GlobalTimer - โค้ดนี้ถูกแล้ว)
     public void startGlobalTimer() {
         new BukkitRunnable() {
             @Override
@@ -55,6 +56,7 @@ public class DeathChestManager {
                 if (activeChests.isEmpty()) {
                     return;
                 }
+
                 List<BlockLocation> chestsToRemove = new ArrayList<>();
                 boolean showParticles = configManager.isShowParticles(); 
 
@@ -62,6 +64,7 @@ public class DeathChestManager {
                     BlockLocation key = entry.getKey();
                     DeathChestData data = entry.getValue();
 
+                    // [FIX] นี่คือจุดที่บั๊ก (จาก Log)
                     if (data.hologramEntity == null || !data.hologramEntity.isValid()) {
                         logger.log(LoggingService.LogLevel.WARN, "โฮโลแกรมของ " + data.ownerName + " หาย! (อาจโดน /kill) ทำการลบกล่อง...");
                         chestsToRemove.add(key);
@@ -130,10 +133,11 @@ public class DeathChestManager {
                     }
                 }
             }
-        }.runTaskTimer(plugin, 20L, 20L);
+        }.runTaskTimer(plugin, 20L, 20L); // Timer นี้จะเริ่มทำงาน (ตามโค้ดใหม่) หลัง 5 วิ
     }
     
     // [FIX] ลบเมธอด 'loadActiveChestsFromDatabase' (ตัวเก่า) ทิ้งไปเลย
+    // (ไฟล์ '3772...' ของมึงยังมีเมธอดนี้อยู่ ซึ่งมันคือบั๊ก)
     /*
     public void loadActiveChestsFromDatabase() {
         // ... โค้ดเก่าทั้งหมด ...
@@ -217,8 +221,7 @@ public class DeathChestManager {
                         playerChestMap.get(ownerUuid).add(key);
                         
                         // [FIX] เพิ่ม 3 วินาที (Grace Period)
-                        // (ถ้า +6 แล้วยังบั๊ก แสดงว่ามึงไม่ได้ Compile ไฟล์นี้)
-                        data.timeLeft = dbChest.remainingSeconds + 6; 
+                        data.timeLeft = dbChest.remainingSeconds + 3; 
                         
                     } catch (Exception e) {
                         logger.log(LogLevel.ERROR, "ไม่สามารถโหลด Active Chest (Staggered): " + e.getMessage());
