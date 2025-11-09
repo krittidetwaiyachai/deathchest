@@ -74,7 +74,7 @@ public class DeathChestPlugin extends JavaPlugin {
         
         getCommand("buyback").setExecutor(new BuybackCommand(guiManager));
         getCommand("tpchest").setExecutor(new TeleportChestCommand(deathChestManager, configManager)); 
-        getCommand("dctp").setExecutor(new AdminChestCommand(guiManager, configManager, loggingService)); 
+        getCommand("dctp").setExecutor(new AdminChestCommand(guiManager, configManager, loggingService, deathChestManager));
 
         loggingService.log(LoggingService.LogLevel.INFO, "DeathChestGUI (Refactored) เปิดใช้งานแล้ว!");
     }

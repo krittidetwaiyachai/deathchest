@@ -1,8 +1,9 @@
 package xyz.kaijiieow.deathchest;
 
 import org.bukkit.Bukkit;
-import org.bukkit.Location;
+// import org.bukkit.Location; // [FIX] ไม่ใช้แล้ว
 import org.bukkit.Material;
+import org.bukkit.block.Block; // [FIX]
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -24,8 +25,9 @@ public class ChestInteractListener implements Listener {
     private final DeathChestManager deathChestManager;
     private final ConfigManager configManager;
     
-    private final Map<UUID, Location> viewingChest = new HashMap<>();
-    private final String VIRTUAL_CHEST_TITLE_PREFIX = "กล่องศพของ ";
+    // [FIX 3.2] เปลี่ยน Map value จาก Location เป็น BlockLocation
+    private final Map<UUID, BlockLocation> viewingChest = new HashMap<>();
+    private final String VIRTUAL_CHEST_TITLE_PREFIX = "กล่องศพของ "; // [FIX] แก้ชื่อ Title ให้ตรงกับที่นายเคยใช้
 
     public ChestInteractListener(DeathChestPlugin plugin, DeathChestManager deathChestManager, ConfigManager configManager) {
         this.plugin = plugin;
@@ -39,8 +41,8 @@ public class ChestInteractListener implements Listener {
             return;
         }
 
-        Location loc = event.getClickedBlock().getLocation();
-        DeathChestData data = deathChestManager.getActiveChestAt(loc);
+        Block block = event.getClickedBlock(); // [FIX 3.2]
+        DeathChestData data = deathChestManager.getActiveChestAt(block); // [FIX 3.2] ใช้เมธอดใหม่
 
         if (data == null) {
             return; 
@@ -70,23 +72,29 @@ public class ChestInteractListener implements Listener {
         }
 
         player.openInventory(virtualChest);
-        viewingChest.put(player.getUniqueId(), loc);
+        
+        // [FIX 3.2] สร้างและเก็บ Key (BlockLocation)
+        BlockLocation key = new BlockLocation(data.worldName, data.x, data.y, data.z);
+        viewingChest.put(player.getUniqueId(), key);
     }
 
     @EventHandler
     public void onChestClose(InventoryCloseEvent event) {
         Player player = (Player) event.getPlayer();
         
-        Location loc = viewingChest.remove(player.getUniqueId());
-        if (loc == null) {
+        // [FIX 3.2] ดึง Key (BlockLocation) ออกมา
+        BlockLocation key = viewingChest.remove(player.getUniqueId());
+        if (key == null) {
             return; 
         }
 
-        DeathChestData data = deathChestManager.getActiveChestAt(loc);
+        // [FIX 3.2] ใช้ Key (BlockLocation) ในการดึงข้อมูล
+        DeathChestData data = deathChestManager.getActiveChestAt(key);
         if (data == null) {
             return; 
         }
         
+        // [FIX] เช็ก Title ให้ตรงกับตอนเปิด
         if (!event.getView().getTitle().equals(VIRTUAL_CHEST_TITLE_PREFIX + data.ownerName)) {
             return;
         }
@@ -108,7 +116,8 @@ public class ChestInteractListener implements Listener {
                 @Override
                 public void run() {
                     plugin.getLoggingService().logChestCollected(data.ownerName, data.locationString);
-                    deathChestManager.removeChest(loc, data, false); 
+                    // [FIX 3.2] ส่ง Key (BlockLocation) ไปลบ
+                    deathChestManager.removeChest(key, data, false); 
                 }
             }.runTask(plugin);
         }

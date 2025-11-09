@@ -6,6 +6,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.inventory.ItemStack;
 
+import xyz.kaijiieow.deathchest.LoggingService.LogLevel;
+
 import java.io.File;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
