@@ -1,6 +1,6 @@
 name: DeathChestGUI
 version: 1.0
-main: xyz.kaijiieow.deathchest.DeathChestPlugin
+main: xyz.kaijiieow.deathchest.plugin.DeathChestPlugin
 api-version: 1.21
 depend: [CoinsEngine, Vault]
 commands:
