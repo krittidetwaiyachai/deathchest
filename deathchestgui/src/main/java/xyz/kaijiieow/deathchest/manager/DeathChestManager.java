@@ -21,6 +21,7 @@ import xyz.kaijiieow.deathchest.model.DeathChestData;
 import xyz.kaijiieow.deathchest.plugin.DeathChestPlugin;
 import xyz.kaijiieow.deathchest.util.LoggingService;
 import xyz.kaijiieow.deathchest.manager.StorageManager;
+import xyz.kaijiieow.deathchest.manager.HookManager;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,6 +38,7 @@ public class DeathChestManager {
     private final LoggingService logger;
     private final DatabaseManager databaseManager;
     private final ChestDatabase chestDatabase;
+    private final HookManager hookManager;
 
     private final Map<BlockLocation, DeathChestData> activeChests = new ConcurrentHashMap<>();
     private final Map<UUID, List<BlockLocation>> playerChestMap = new ConcurrentHashMap<>();
@@ -51,13 +53,14 @@ public class DeathChestManager {
     private ChestLoader chestLoader;
     private ChestRemover chestRemover;
 
-    public DeathChestManager(DeathChestPlugin plugin, ConfigManager configManager, StorageManager storageManager, LoggingService logger, DatabaseManager databaseManager) {
+    public DeathChestManager(DeathChestPlugin plugin, ConfigManager configManager, StorageManager storageManager, LoggingService logger, DatabaseManager databaseManager, HookManager hookManager) {
         this.plugin = plugin;
         this.configManager = configManager;
         this.storageManager = storageManager;
         this.logger = logger;
         this.databaseManager = databaseManager;
         this.chestDatabase = databaseManager.getChestDatabase();
+        this.hookManager = hookManager;
         
         this.chestRemover = new ChestRemover(plugin, configManager, logger, chestDatabase, storageManager, activeChests, playerChestMap);
         this.chestTimer = new ChestTimer(plugin, configManager, logger, activeChests, chestRemover, particleSoulFireFlame, particleElectricSpark, particleSculkSoul);
@@ -93,6 +96,13 @@ public class DeathChestManager {
     
     public void createDeathChest(PlayerDeathEvent event) {
         Player player = event.getEntity();
+        
+        // เช็ค keepInventory gamerule - ถ้าเปิดอยู่จะไม่สร้างกล่องศพ
+        if (player.getWorld().getGameRuleValue(org.bukkit.GameRule.KEEP_INVENTORY)) {
+            logger.log(LoggingService.LogLevel.INFO, "ผู้เล่น " + player.getName() + " ตายแต่ keepInventory เปิดอยู่ ไม่สร้างกล่องศพ");
+            return;
+        }
+        
         Location deathLoc = player.getLocation();
         int totalExp = player.getTotalExperience();
         List<ItemStack> allItems = new ArrayList<>(event.getDrops());
@@ -129,7 +139,14 @@ public class DeathChestManager {
         Location hologramLoc = blockLoc.clone().add(0.5, configManager.getHologramYOffset(), 0.5);
         String locationStr = String.format("%d, %d, %d", blockLoc.getBlockX(), blockLoc.getBlockY(), blockLoc.getBlockZ());
         
-        int initialTime = configManager.getDespawnTime();
+        // ใช้เวลา despawn ตามยศของผู้เล่นที่ตาย
+        int initialTime;
+        if (configManager.getDespawnTimerByGroup().isEmpty()) {
+            initialTime = configManager.getDespawnTime();
+        } else {
+            String playerGroup = hookManager.getPlayerGroup(player);
+            initialTime = configManager.getDespawnTimeForGroup(playerGroup);
+        }
         int minutes = initialTime / 60;
         int seconds = initialTime % 60;
         final String timeString;
@@ -174,7 +191,7 @@ public class DeathChestManager {
             player.getUniqueId(), player.getName(), chest, hologram,
             validItems.toArray(new ItemStack[0]), totalExp, locationStr,
             player.getWorld().getName(), blockLoc.getBlockX(), blockLoc.getBlockY(), blockLoc.getBlockZ(),
-            creationTime
+            creationTime, initialTime
         );
         BlockLocation key = new BlockLocation(data.worldName, data.x, data.y, data.z);
         activeChests.put(key, data);

@@ -42,6 +42,7 @@ public class DeathChestPlugin extends JavaPlugin {
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
+        hookManager.setupLuckPerms(); // เชื่อมต่อกับ LuckPerms
         
         this.databaseManager = new DatabaseManager(this, configManager, loggingService);
         try {
@@ -54,7 +55,7 @@ public class DeathChestPlugin extends JavaPlugin {
         }
 
         this.storageManager = new StorageManager(databaseManager, loggingService);
-        this.deathChestManager = new DeathChestManager(this, configManager, storageManager, loggingService, databaseManager);
+        this.deathChestManager = new DeathChestManager(this, configManager, storageManager, loggingService, databaseManager, hookManager);
         this.guiManager = new GuiManager(this, configManager, hookManager, storageManager, loggingService);
         
         this.storageManager.loadBuybackItemsFromDatabase();
@@ -79,7 +80,7 @@ public class DeathChestPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new ChestProtectionListener(deathChestManager), this);
         
         getCommand("buyback").setExecutor(new BuybackCommand(guiManager));
-        getCommand("tpchest").setExecutor(new TeleportChestCommand(deathChestManager, configManager));
+        getCommand("tpchest").setExecutor(new TeleportChestCommand(this, deathChestManager, configManager, hookManager));
         getCommand("dctp").setExecutor(new AdminChestCommand(guiManager, configManager, loggingService, deathChestManager));
 
         new org.bukkit.scheduler.BukkitRunnable() {

@@ -145,11 +145,14 @@ public class ChestLoader {
             
             // Create DeathChestData
             UUID ownerUUID = UUID.fromString(dbData.ownerUuid);
+            // ใช้ remainingSeconds เป็น initialDespawnTime สำหรับกล่องที่โหลดจาก database
+            // (อาจจะไม่ถูกต้อง 100% แต่ก็พอใช้ได้สำหรับการคำนวณ protection)
+            int estimatedInitialTime = dbData.remainingSeconds;
             DeathChestData data = new DeathChestData(
                 ownerUUID, dbData.ownerName, chest, hologram,
                 items, dbData.experience, locationStr,
                 dbData.world, dbData.x, dbData.y, dbData.z,
-                dbData.createdAt
+                dbData.createdAt, estimatedInitialTime
             );
             data.timeLeft = dbData.remainingSeconds;
             

@@ -56,9 +56,31 @@ public class ChestInteractListener implements Listener {
         Player player = event.getPlayer();
         boolean isOwner = player.getUniqueId().equals(data.ownerUUID);
 
-        if (!isOwner && !configManager.isAllowOtherPlayersToOpen()) {
-            player.sendMessage(configManager.getChatMessageNotYourChest().replace("&", "§"));
-            return;
+        if (!isOwner) {
+            double protectionPercent = configManager.getStealProtectionPercent();
+            
+            if (protectionPercent > 0 && data.createdAt > 0 && data.initialDespawnTime > 0) {
+                // คำนวณเวลา protection จากเปอร์เซ็นต์ของเวลา despawn เริ่มต้น
+                int protectionSeconds = (int) Math.round(data.initialDespawnTime * protectionPercent / 100.0);
+                
+                long elapsedMillis = System.currentTimeMillis() - data.createdAt;
+                long protectionMillis = protectionSeconds * 1000L;
+                long remainingMillis = protectionMillis - elapsedMillis;
+                if (remainingMillis > 0) {
+                    long remainingSeconds = (remainingMillis + 999) / 1000;
+                    player.sendMessage(
+                        configManager.getChatMessageChestProtected()
+                            .replace("&", "§")
+                            .replace("%time%", String.valueOf(remainingSeconds))
+                    );
+                    return;
+                }
+            }
+
+            if (!configManager.isAllowOtherPlayersToOpen()) {
+                player.sendMessage(configManager.getChatMessageNotYourChest().replace("&", "§"));
+                return;
+            }
         }
 
         if (isOwner && data.experience > 0) {

@@ -1,9 +1,12 @@
 package xyz.kaijiieow.deathchest.manager;
 
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import xyz.kaijiieow.deathchest.plugin.DeathChestPlugin;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ConfigManager {
 
@@ -13,6 +16,9 @@ public class ConfigManager {
     private String currencyName;
     private int buybackCost;
     private boolean allowOtherPlayersToOpen;
+    private double stealProtectionPercent;
+    private Map<String, Integer> despawnTimerByGroup = new HashMap<>();
+    private Map<String, Double> tpChestCostByGroup = new HashMap<>();
     private double hologramYOffset;
     private int tpChestCooldown;
     private List<String> hologramLines;
@@ -22,10 +28,13 @@ public class ConfigManager {
     private String chatMessageExpired;
     private String chatMessageNotYourChest;
     private String chatMessageXpRestored;
+    private String chatMessageChestProtected;
     private String chatMessageNoPermission;
     private String chatMessageNoChestFound;
     private String chatMessageTeleported;
     private String chatMessageTeleportCooldown;
+    private String chatMessageTpchestInsufficientFunds;
+    private String chatMessageTpchestCharged;
 
     private String chatMessageAdminNoPlayerFound;
     private String chatMessageAdminNoChests;
@@ -70,6 +79,24 @@ public class ConfigManager {
         this.currencyName = config.getString("settings.currency-name", "coins");
         this.buybackCost = config.getInt("settings.buyback-cost", 1000);
         this.allowOtherPlayersToOpen = config.getBoolean("settings.allow-other-players-to-open", false);
+        this.stealProtectionPercent = config.getDouble("settings.steal-protection-percent", 0.0);
+        
+        // โหลดการตั้งค่าตามยศสำหรับเวลา despawn
+        ConfigurationSection despawnTimerSection = config.getConfigurationSection("settings.despawn-timer-by-group");
+        if (despawnTimerSection != null) {
+            for (String group : despawnTimerSection.getKeys(false)) {
+                despawnTimerByGroup.put(group.toLowerCase(), despawnTimerSection.getInt(group, despawnTime));
+            }
+        }
+        
+        // โหลดการตั้งค่าตามยศสำหรับค่าใช้จ่าย tpchest
+        ConfigurationSection tpCostSection = config.getConfigurationSection("settings.tpchest-cost-by-group");
+        if (tpCostSection != null) {
+            for (String group : tpCostSection.getKeys(false)) {
+                tpChestCostByGroup.put(group.toLowerCase(), tpCostSection.getDouble(group, 0.0));
+            }
+        }
+        
         this.hologramYOffset = config.getDouble("settings.hologram-y-offset", 1.2);
         this.tpChestCooldown = config.getInt("settings.teleport-command-cooldown", 30);
         this.hologramLines = config.getStringList("settings.hologram-lines");
@@ -79,10 +106,13 @@ public class ConfigManager {
         this.chatMessageExpired = config.getString("messages.expired", "§cกล่องเก็บของของคุณหมดเวลา! §eคุณสามารถซื้อคืนได้ด้วยคำสั่ง §f/buyback");
         this.chatMessageNotYourChest = config.getString("messages.not_your_chest", "§cนี่ไม่ใช่กล่องศพของคุณ!");
         this.chatMessageXpRestored = config.getString("messages.xp_restored", "§aคุณได้รับ XP คืน: %xp%");
+        this.chatMessageChestProtected = config.getString("messages.chest_still_protected", "§cกล่องนี้ยังอยู่ในช่วงป้องกันอีก %time% วินาที!");
         this.chatMessageNoPermission = config.getString("messages.no_permission", "§cคุณไม่มียศพอที่จะใช้คำสั่งนี้!");
         this.chatMessageNoChestFound = config.getString("messages.no_chest_found", "§cไม่พบกล่องศพของคุณ");
         this.chatMessageTeleported = config.getString("messages.teleported", "§aวาร์ปไปยังกล่องศพของคุณ!");
         this.chatMessageTeleportCooldown = config.getString("messages.teleport-cooldown", "§cใจเย็น! ต้องรออีก %time% วินาทีก่อนจะวาร์ปได้");
+        this.chatMessageTpchestInsufficientFunds = config.getString("messages.tpchest_insufficient_funds", "§cคุณมีเงินไม่พอ! ต้องการ: §f%cost% %currency% §cแต่คุณมี: §f%balance% %currency%");
+        this.chatMessageTpchestCharged = config.getString("messages.tpchest_charged", "§eหักเงิน: §f%cost% %currency%");
 
         this.chatMessageAdminNoPlayerFound = config.getString("messages.admin-no-player-found", "§cไม่พบผู้เล่นชื่อ %player% หรือผู้เล่นนี้ยังไม่เคยเข้าเซิร์ฟเวอร์");
         this.chatMessageAdminNoChests = config.getString("messages.admin-no-chests-found", "§eผู้เล่น %player% ไม่มีกล่องศพที่กำลังใช้งานอยู่ หรือของใน Buyback");
@@ -107,9 +137,18 @@ public class ConfigManager {
     public String getEconomyProvider() { return economyProvider; }
 
     public int getDespawnTime() { return despawnTime; }
+    public Map<String, Integer> getDespawnTimerByGroup() { return despawnTimerByGroup; }
+    public int getDespawnTimeForGroup(String group) {
+        return despawnTimerByGroup.getOrDefault(group.toLowerCase(), despawnTime);
+    }
     public String getCurrencyName() { return currencyName; }
     public int getBuybackCost() { return buybackCost; }
     public boolean isAllowOtherPlayersToOpen() { return allowOtherPlayersToOpen; }
+    public double getStealProtectionPercent() { return stealProtectionPercent; }
+    public Map<String, Double> getTpChestCostByGroup() { return tpChestCostByGroup; }
+    public double getTpChestCostForGroup(String group) {
+        return tpChestCostByGroup.getOrDefault(group.toLowerCase(), 0.0);
+    }
     public double getHologramYOffset() { return hologramYOffset; }
     public int getTpChestCooldown() { return tpChestCooldown; }
     public List<String> getHologramLines() { return hologramLines; }
@@ -119,10 +158,13 @@ public class ConfigManager {
     public String getChatMessageExpired() { return chatMessageExpired; }
     public String getChatMessageNotYourChest() { return chatMessageNotYourChest; }
     public String getChatMessageXpRestored() { return chatMessageXpRestored; }
+    public String getChatMessageChestProtected() { return chatMessageChestProtected; }
     public String getChatMessageNoPermission() { return chatMessageNoPermission; }
     public String getChatMessageNoChestFound() { return chatMessageNoChestFound; }
     public String getChatMessageTeleported() { return chatMessageTeleported; }
     public String getChatMessageTeleportCooldown() { return chatMessageTeleportCooldown; }
+    public String getChatMessageTpchestInsufficientFunds() { return chatMessageTpchestInsufficientFunds; }
+    public String getChatMessageTpchestCharged() { return chatMessageTpchestCharged; }
 
     public String getChatMessageAdminNoPlayerFound() { return chatMessageAdminNoPlayerFound; }
     public String getChatMessageAdminNoChests() { return chatMessageAdminNoChests; }

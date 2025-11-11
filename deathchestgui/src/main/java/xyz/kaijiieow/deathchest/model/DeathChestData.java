@@ -15,11 +15,12 @@ public class DeathChestData {
     public int experience;
     public String locationString;
     public int timeLeft;
+    public int initialDespawnTime; // เวลา despawn เริ่มต้น (วินาที)
     public String worldName;
     public int x, y, z;
     public long createdAt;
 
-    public DeathChestData(UUID ownerUUID, String ownerName, Chest chest, TextDisplay hologramEntity, ItemStack[] items, int experience, String locationString, String worldName, int x, int y, int z, long createdAt) {
+    public DeathChestData(UUID ownerUUID, String ownerName, Chest chest, TextDisplay hologramEntity, ItemStack[] items, int experience, String locationString, String worldName, int x, int y, int z, long createdAt, int initialDespawnTime) {
         this.ownerUUID = ownerUUID;
         this.ownerName = ownerName;
         this.chest = chest;
@@ -29,6 +30,7 @@ public class DeathChestData {
         this.locationString = locationString;
         this.worldName = worldName;
         this.timeLeft = 0;
+        this.initialDespawnTime = initialDespawnTime;
         this.x = x;
         this.y = y;
         this.z = z;

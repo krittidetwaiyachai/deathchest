@@ -14,12 +14,29 @@ database:
   #   password: "password"
 
 settings:
-  despawn-timer: 200
+  despawn-timer: 1800
   economy-provider: "VAULT"
   # 'currency-name' จะถูกใช้เมื่อ 'economy-provider' เป็น "COINS_ENGINE" เท่านั้น
   # currency-name: "coins"
   buyback-cost: 1
-  allow-other-players-to-open: false # (ถ้า true = ใครก็เปิดได้, ถ้า false = เจ้าของเท่านั้น)
+  allow-other-players-to-open: true # (ถ้า true = ใครก็เปิดได้, ถ้า false = เจ้าของเท่านั้น)
+  steal-protection-percent: 50.0 # เปอร์เซ็นต์ของเวลา despawn ที่ป้องกันการขโมย (0.0-100.0) เช่น 10.0 = 10% แรกของเวลา despawn
+  despawn-timer-by-group: # เวลา despawn ตามยศ (วินาที) - ใช้แทนค่า despawn-timer ถ้ามีการตั้งค่า
+    default: 30
+    berry: 30
+    grape: 60
+    lime: 1800
+    orange: 1800
+    coconut: 1800
+    melon: 1800
+  tpchest-cost-by-group: # ค่าใช้จ่าย /tpchest ตามยศ
+    default: 1800.0
+    berry: 1800.0
+    grape: 1500.0
+    lime: 1200.0
+    orange: 900.0
+    coconut: 600.0
+    melon: 300.0
   hologram-y-offset: 1.5
   teleport-command-cooldown: 30
   hologram-lines:
@@ -36,10 +53,13 @@ messages:
   expired: "§cกล่องเก็บของของคุณหมดเวลา! §eคุณสามารถซื้อคืนได้ด้วยคำสั่ง §f/buyback"
   not_your_chest: "§cนี่ไม่ใช่กล่องศพของคุณ!"
   xp_restored: "§aคุณได้รับ XP คืน: %xp%"
+  chest_still_protected: "§cกล่องนี้ยังอยู่ในช่วงป้องกันอีก %time% วินาที!"
   no_permission: "§cคุณไม่มียศพอที่จะใช้คำสั่งนี้!"
   no_chest_found: "§cไม่พบกล่องศพของคุณ"
   teleported: "§aวาร์ปไปยังกล่องศพของคุณ!"
   teleport-cooldown: "§cใจเย็น! ต้องรออีก %time% วินาทีก่อนจะวาร์ปได้"
+  tpchest_insufficient_funds: "§cคุณมีเงินไม่พอ! ต้องการ: §f%cost% %currency% §cแต่คุณมี: §f%balance% %currency%"
+  tpchest_charged: "§eหักเงิน: §f%cost% %currency%"
   
   admin-no-player-found: "§cไม่พบผู้เล่นชื่อ %player% หรือผู้เล่นนี้ยังไม่เคยเข้าเซิร์ฟเวอร์"
   admin-no-chests-found: "§eผู้เล่น %player% ไม่มีกล่องศพที่กำลังใช้งานอยู่ หรือของใน Buyback"

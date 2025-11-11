@@ -1,5 +1,8 @@
 package xyz.kaijiieow.deathchest.manager;
 
+import net.luckperms.api.LuckPerms;
+import net.luckperms.api.LuckPermsProvider;
+import net.luckperms.api.model.user.User;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
@@ -19,6 +22,7 @@ public class HookManager {
 
     private Economy vaultEconomy = null;
     private Currency coinsEngineCurrency;
+    private LuckPerms luckPerms = null;
 
     public HookManager(DeathChestPlugin plugin, ConfigManager configManager, LoggingService logger) {
         this.plugin = plugin;
@@ -121,6 +125,37 @@ public class HookManager {
                 return vaultEconomy.currencyNamePlural();
             default:
                 return "???";
+        }
+    }
+
+    public boolean setupLuckPerms() {
+        if (plugin.getServer().getPluginManager().getPlugin("LuckPerms") == null) {
+            logger.log(LoggingService.LogLevel.WARN, "ไม่พบปลั๊กอิน LuckPerms การตั้งค่าตามยศจะไม่ทำงาน");
+            return false;
+        }
+        try {
+            luckPerms = LuckPermsProvider.get();
+            logger.log(LoggingService.LogLevel.INFO, "เชื่อมต่อกับ LuckPerms สำเร็จ!");
+            return true;
+        } catch (Exception e) {
+            logger.log(LoggingService.LogLevel.WARN, "ไม่สามารถเชื่อมต่อกับ LuckPerms ได้: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public String getPlayerGroup(Player player) {
+        if (luckPerms == null) {
+            return "default";
+        }
+        try {
+            User user = luckPerms.getUserManager().getUser(player.getUniqueId());
+            if (user == null) {
+                return "default";
+            }
+            return user.getPrimaryGroup();
+        } catch (Exception e) {
+            logger.log(LoggingService.LogLevel.WARN, "ไม่สามารถดึงยศของผู้เล่น " + player.getName() + " ได้: " + e.getMessage());
+            return "default";
         }
     }
 }
