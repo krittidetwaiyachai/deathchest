@@ -69,11 +69,17 @@ public class FancyHologramService {
         }
         try {
             hologramManager.removeHologram(hologram);
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            // --- START CORRECTION ---
+            logger.log(LoggingService.LogLevel.ERROR, "ลบ Hologram (remove) ไม่สำเร็จ: " + e.getMessage());
+            // --- END CORRECTION ---
         }
         try {
             hologram.deleteHologram();
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            // --- START CORRECTION ---
+            logger.log(LoggingService.LogLevel.ERROR, "ลบ Hologram (delete) ไม่สำเร็จ: " + e.getMessage());
+            // --- END CORRECTION ---
         }
     }
 

@@ -69,10 +69,20 @@ public class ChestRemover {
             data = activeChests.get(key);
             if (data == null) return;
         }
-        hologramService.delete(data.hologramEntity);
-        hologramService.deleteById(data.hologramId);
+
+        // --- START CORRECTION ---
+        // เปลี่ยนตรรกะการลบ: ให้เน้นลบด้วย ID ก่อน เพราะชัวร์กว่า
+        if (data.hologramId != null) {
+            hologramService.deleteById(data.hologramId);
+        } else if (data.hologramEntity != null) {
+            // ถ้า ID มันดัน null (ซึ่งเป็นบั๊กจุดอื่น) ก็ลองลบจาก Entity เป็น fallback
+            hologramService.delete(data.hologramEntity);
+        }
+        // --- END CORRECTION ---
+
         data.hologramEntity = null;
         data.hologramId = null;
+
         World world = Bukkit.getWorld(key.worldName());
         if (world != null) {
             Location loc = new Location(world, key.x(), key.y(), key.z());
@@ -114,4 +124,3 @@ public class ChestRemover {
         }
     }
 }
-
