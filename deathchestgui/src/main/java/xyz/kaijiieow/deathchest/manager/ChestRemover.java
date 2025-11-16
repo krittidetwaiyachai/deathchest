@@ -71,12 +71,14 @@ public class ChestRemover {
         }
 
         // --- START CORRECTION ---
-        // เปลี่ยนตรรกะการลบ: ให้เน้นลบด้วย ID ก่อน เพราะชัวร์กว่า
         if (data.hologramId != null) {
+            logger.log(LoggingService.LogLevel.WARN, "กำลังพยายามลบโฮโลแกรมด้วย ID: " + data.hologramId);
             hologramService.deleteById(data.hologramId);
         } else if (data.hologramEntity != null) {
-            // ถ้า ID มันดัน null (ซึ่งเป็นบั๊กจุดอื่น) ก็ลองลบจาก Entity เป็น fallback
+            logger.log(LoggingService.LogLevel.WARN, "Hologram ID เป็น null, พยายามลบด้วย Entity แทน...");
             hologramService.delete(data.hologramEntity);
+        } else {
+            logger.log(LoggingService.LogLevel.ERROR, "ลบโฮโลแกรมไม่ได้เลย เพราะทั้ง ID และ Entity เป็น null");
         }
         // --- END CORRECTION ---
 

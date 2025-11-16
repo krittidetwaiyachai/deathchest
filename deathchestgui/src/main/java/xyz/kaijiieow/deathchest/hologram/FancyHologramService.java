@@ -12,6 +12,7 @@ import xyz.kaijiieow.deathchest.util.LoggingService;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -43,7 +44,9 @@ public class FancyHologramService {
         data.setText(buildFormattedLines(ownerName, experience, coordinates, secondsRemaining));
 
         // ป้องกันไม่ให้สร้างโฮโลแกรมซ้ำชื่อเดิมค้างอยู่
-        deleteById(hologramId);
+        // เราจะ 'ปิด' การ log error ตรงนี้ เพราะมันน่ารำคาญ
+        // deleteById(hologramId);
+        hologramManager.getHologram(hologramId).ifPresent(this::deleteQuietly); // <--- แก้ไขไม่ให้ log error ตอนสร้าง
 
         Hologram hologram = hologramManager.create(data);
         hologramManager.addHologram(hologram);
@@ -63,32 +66,63 @@ public class FancyHologramService {
         hologram.forceUpdate();
     }
 
+    // --- START CORRECTION (รอบ 3) ---
+
+    // เมธอดลบแบบส่งเสียงดัง (สำหรับ ChestRemover)
     public void delete(Hologram hologram) {
         if (hologram == null) {
             return;
         }
+        
+        // สลับลำดับการลบ
+        // ลองเรียก deleteHologram() ก่อน
         try {
-            hologramManager.removeHologram(hologram);
+            hologram.deleteHologram(); // [Line 82]
         } catch (Exception e) {
-            // --- START CORRECTION ---
-            logger.log(LoggingService.LogLevel.ERROR, "ลบ Hologram (remove) ไม่สำเร็จ: " + e.getMessage());
-            // --- END CORRECTION ---
+            logger.log(LoggingService.LogLevel.ERROR, "ลบ Hologram (delete) ไม่สำเร็จ: " + e.getMessage()); // [Line 85]
         }
+        
+        // แล้วค่อยเรียก removeHologram()
         try {
-            hologram.deleteHologram();
+            hologramManager.removeHologram(hologram); // [Line 78]
         } catch (Exception e) {
-            // --- START CORRECTION ---
-            logger.log(LoggingService.LogLevel.ERROR, "ลบ Hologram (delete) ไม่สำเร็จ: " + e.getMessage());
-            // --- END CORRECTION ---
+            logger.log(LoggingService.LogLevel.ERROR, "ลบ Hologram (remove) ไม่สำเร็จ: " + e.getMessage()); // [Line 80]
         }
     }
 
-    public void deleteById(String hologramId) {
-        if (hologramId == null) {
+    // เมธอดลบแบบเงียบๆ (สำหรับตอนสร้าง)
+    private void deleteQuietly(Hologram hologram) {
+        if (hologram == null) {
             return;
         }
-        hologramManager.getHologram(hologramId).ifPresent(this::delete);
+        try {
+            hologram.deleteHologram();
+        } catch (Exception ignored) {
+        }
+        try {
+            hologramManager.removeHologram(hologram);
+        } catch (Exception ignored) {
+        }
     }
+
+    // เมธอด deleteById (สำหรับ ChestRemover)
+    public void deleteById(String hologramId) {
+        if (hologramId == null) {
+            logger.log(LoggingService.LogLevel.WARN, "พยายามลบโฮโลแกรม แต่ hologramId เป็น null");
+            return;
+        }
+        
+        Optional<Hologram> holo = hologramManager.getHologram(hologramId);
+        
+        if (holo.isPresent()) {
+            logger.log(LoggingService.LogLevel.INFO, "เจอโฮโลแกรมด้วย ID: " + hologramId + " - กำลังสั่งลบ...");
+            delete(holo.get()); // เรียกใช้เมธอด delete() ที่ส่งเสียงดัง
+        } else {
+            logger.log(LoggingService.LogLevel.ERROR, "ไม่เจอโฮโลแกรมด้วย ID: " + hologramId + " - การลบจึงล้มเหลว (ปลั๊กอิน FancyHolograms หาไม่เจอ)");
+        }
+    }
+    
+    // --- END CORRECTION (รอบ 3) ---
 
     public boolean isValid(Hologram hologram) {
         if (hologram == null) {
