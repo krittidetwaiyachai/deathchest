@@ -1,12 +1,12 @@
 package xyz.kaijiieow.deathchest.manager;
 
-import de.oliver.fancyholograms.api.hologram.Hologram;
 import org.bukkit.Bukkit;
+import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.World;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.scheduler.BukkitRunnable;
-import xyz.kaijiieow.deathchest.hologram.FancyHologramService;
 import xyz.kaijiieow.deathchest.manager.ConfigManager;
 import xyz.kaijiieow.deathchest.model.BlockLocation;
 import xyz.kaijiieow.deathchest.model.DeathChestData;
@@ -24,7 +24,7 @@ public class ChestTimer {
     private final LoggingService logger;
     private final Map<BlockLocation, DeathChestData> activeChests;
     private final ChestRemover chestRemover;
-    private final FancyHologramService hologramService;
+    private final StringBuilder hologramStringBuilder = new StringBuilder();
     
     private final Particle particleSoulFireFlame;
     private final Particle particleElectricSpark;
@@ -32,14 +32,12 @@ public class ChestTimer {
     
     public ChestTimer(DeathChestPlugin plugin, ConfigManager configManager, LoggingService logger,
                      Map<BlockLocation, DeathChestData> activeChests, ChestRemover chestRemover,
-                     FancyHologramService hologramService,
                      Particle particleSoulFireFlame, Particle particleElectricSpark, Particle particleSculkSoul) {
         this.plugin = plugin;
         this.configManager = configManager;
         this.logger = logger;
         this.activeChests = activeChests;
         this.chestRemover = chestRemover;
-        this.hologramService = hologramService;
         this.particleSoulFireFlame = particleSoulFireFlame;
         this.particleElectricSpark = particleElectricSpark;
         this.particleSculkSoul = particleSculkSoul;
@@ -60,10 +58,62 @@ public class ChestTimer {
                     BlockLocation key = entry.getKey();
                     DeathChestData data = entry.getValue();
 
-                    if (!hologramService.isValid(data.hologramEntity)) {
-                        logger.log(LoggingService.LogLevel.WARN, "โฮโลแกรมของ " + data.ownerName + " หาย ตรวจพบความเสียหายของกล่องศพ ลบกล่องนี้ทิ้ง");
-                        chestsToRemove.add(key);
-                        continue;
+                    if (data.hologramEntity == null || !data.hologramEntity.isValid()) {
+                        logger.log(LoggingService.LogLevel.WARN, "โฮโลแกรมของ " + data.ownerName + " หาย! พยายามสร้างใหม่...");
+                        try {
+                            World world = Bukkit.getWorld(key.worldName());
+                            if (world != null) {
+                                Location hologramLoc = new Location(world, key.x() + 0.5, key.y() + configManager.getHologramYOffset(), key.z() + 0.5);
+
+                                int minutes = data.timeLeft / 60;
+                                int seconds = data.timeLeft % 60;
+                                final String timeString;
+                                if (minutes > 0) {
+                                    timeString = minutes + " นาที " + seconds;
+                                } else {
+                                    timeString = String.valueOf(data.timeLeft);
+                                }
+
+                                hologramStringBuilder.setLength(0);
+                                List<String> lines = configManager.getHologramLines();
+                                for (int i = 0; i < lines.size(); i++) {
+                                    String line = lines.get(i);
+                                    line = line.replace("&", "§")
+                                            .replace("%player%", data.ownerName)
+                                            .replace("%time%", timeString)
+                                            .replace("%xp%", String.valueOf(data.experience))
+                                            .replace("%coords%", data.locationString);
+
+                                    hologramStringBuilder.append(line);
+                                    if (i < lines.size() - 1) {
+                                        hologramStringBuilder.append("\n");
+                                    }
+                                }
+                                final String newText = hologramStringBuilder.toString();
+
+                                TextDisplay newHologram = world.spawn(hologramLoc, TextDisplay.class, (holo) -> {
+                                    holo.setGravity(false);
+                                    holo.setPersistent(false);
+                                    holo.setInvulnerable(true);
+                                    holo.setBrightness(new org.bukkit.entity.Display.Brightness(15, 15));
+                                    holo.setAlignment(TextDisplay.TextAlignment.CENTER);
+                                    holo.setBillboard(org.bukkit.entity.Display.Billboard.CENTER);
+                                    holo.setGlowing(true);
+                                    holo.setGlowColorOverride(Color.YELLOW);
+                                    holo.setViewRange(64.0f);
+                                    holo.setText(newText);
+                                });
+
+                                data.hologramEntity = newHologram;
+                            } else {
+                                chestsToRemove.add(key);
+                                continue;
+                            }
+                        } catch (Exception e) {
+                            logger.log(LoggingService.LogLevel.ERROR, "ไม่สามารถสร้างโฮโลแกรมใหม่ให้กับ " + data.ownerName + " ได้: " + e.getMessage());
+                            chestsToRemove.add(key);
+                            continue;
+                        }
                     }
 
                     if (data.timeLeft <= 0) {
@@ -86,13 +136,35 @@ public class ChestTimer {
                         }
                     }
 
-                    hologramService.updateDeathChestHologram(
-                            data.hologramEntity,
-                            data.ownerName,
-                            data.experience,
-                            data.locationString,
-                            data.timeLeft
-                    );
+                    int minutes = data.timeLeft / 60;
+                    int seconds = data.timeLeft % 60;
+
+                    final String timeString;
+                    if (minutes > 0) {
+                        timeString = minutes + " นาที " + seconds;
+                    } else {
+                        timeString = String.valueOf(data.timeLeft);
+                    }
+
+                    hologramStringBuilder.setLength(0);
+                    List<String> lines = configManager.getHologramLines();
+                    for (int i = 0; i < lines.size(); i++) {
+                        String line = lines.get(i);
+                        line = line.replace("&", "§")
+                                .replace("%player%", data.ownerName)
+                                .replace("%time%", timeString)
+                                .replace("%xp%", String.valueOf(data.experience))
+                                .replace("%coords%", data.locationString);
+
+                        hologramStringBuilder.append(line);
+                        if (i < lines.size() - 1) {
+                            hologramStringBuilder.append("\n");
+                        }
+                    }
+
+                    if (data.hologramEntity != null && data.hologramEntity.isValid()) {
+                        data.hologramEntity.setText(hologramStringBuilder.toString());
+                    }
 
                     data.timeLeft--;
                 }

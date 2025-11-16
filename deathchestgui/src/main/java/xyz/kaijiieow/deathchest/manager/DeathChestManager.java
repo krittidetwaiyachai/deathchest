@@ -1,19 +1,19 @@
 package xyz.kaijiieow.deathchest.manager;
 
-import de.oliver.fancyholograms.api.hologram.Hologram;
 import org.bukkit.Bukkit;
+import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.block.Block;
 import org.bukkit.block.Chest;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
 import xyz.kaijiieow.deathchest.database.ChestDatabase;
 import xyz.kaijiieow.deathchest.database.DatabaseManager;
-import xyz.kaijiieow.deathchest.hologram.FancyHologramService;
 import xyz.kaijiieow.deathchest.manager.ConfigManager;
 import xyz.kaijiieow.deathchest.manager.HookManager;
 import xyz.kaijiieow.deathchest.manager.StorageManager;
@@ -38,7 +38,6 @@ public class DeathChestManager {
     private final DatabaseManager databaseManager;
     private final ChestDatabase chestDatabase;
     private final HookManager hookManager;
-    private final FancyHologramService hologramService;
 
     private final Map<BlockLocation, DeathChestData> activeChests = new ConcurrentHashMap<>();
     private final Map<UUID, List<BlockLocation>> playerChestMap = new ConcurrentHashMap<>();
@@ -46,14 +45,14 @@ public class DeathChestManager {
     private final Particle particleSoulFireFlame = resolveParticle("SOUL_FIRE_FLAME", Particle.FLAME);
     private final Particle particleElectricSpark = resolveParticle("ELECTRIC_SPARK", Particle.FIREWORKS_SPARK);
     private final Particle particleSculkSoul = resolveParticle("SCULK_SOUL", Particle.PORTAL);
+    private final StringBuilder hologramStringBuilder = new StringBuilder();
     
     private ChestTimer chestTimer;
     private ChestLoader chestLoader;
     private ChestRemover chestRemover;
 
     public DeathChestManager(DeathChestPlugin plugin, ConfigManager configManager, StorageManager storageManager,
-                             LoggingService logger, DatabaseManager databaseManager, HookManager hookManager,
-                             FancyHologramService hologramService) {
+                             LoggingService logger, DatabaseManager databaseManager, HookManager hookManager) {
         this.plugin = plugin;
         this.configManager = configManager;
         this.storageManager = storageManager;
@@ -61,11 +60,10 @@ public class DeathChestManager {
         this.databaseManager = databaseManager;
         this.chestDatabase = databaseManager.getChestDatabase();
         this.hookManager = hookManager;
-        this.hologramService = hologramService;
         
-        this.chestRemover = new ChestRemover(plugin, configManager, logger, chestDatabase, storageManager, hologramService, activeChests, playerChestMap);
-        this.chestTimer = new ChestTimer(plugin, configManager, logger, activeChests, chestRemover, hologramService, particleSoulFireFlame, particleElectricSpark, particleSculkSoul);
-        this.chestLoader = new ChestLoader(plugin, configManager, logger, chestDatabase, hologramService, activeChests, playerChestMap);
+        this.chestRemover = new ChestRemover(plugin, configManager, logger, chestDatabase, storageManager, activeChests, playerChestMap);
+        this.chestTimer = new ChestTimer(plugin, configManager, logger, activeChests, chestRemover, particleSoulFireFlame, particleElectricSpark, particleSculkSoul);
+        this.chestLoader = new ChestLoader(plugin, configManager, logger, chestDatabase, activeChests, playerChestMap);
     }
     
     public void startGlobalTimer() {
@@ -148,25 +146,48 @@ public class DeathChestManager {
             String playerGroup = hookManager.getPlayerGroup(player);
             initialTime = configManager.getDespawnTimeForGroup(playerGroup);
         }
-        String hologramId = hologramService.buildHologramId(
-                player.getWorld().getName(),
-                blockLoc.getBlockX(),
-                blockLoc.getBlockY(),
-                blockLoc.getBlockZ(),
-                player.getUniqueId()
-        );
-        Hologram hologram = hologramService.createDeathChestHologram(
-                hologramId,
-                hologramLoc,
-                player.getName(),
-                totalExp,
-                locationStr,
-                initialTime
-        );
+        int minutes = initialTime / 60;
+        int seconds = initialTime % 60;
+        final String timeString;
+        if (minutes > 0) {
+            timeString = minutes + " นาที " + seconds;
+        } else {
+            timeString = String.valueOf(initialTime);
+        }
+
+        hologramStringBuilder.setLength(0);
+        List<String> lines = configManager.getHologramLines();
+        for (int j = 0; j < lines.size(); j++) {
+            String line = lines.get(j);
+            line = line.replace("&", "§")
+                    .replace("%player%", player.getName())
+                    .replace("%time%", timeString)
+                    .replace("%xp%", String.valueOf(totalExp))
+                    .replace("%coords%", locationStr);
+            
+            hologramStringBuilder.append(line);
+            if (j < lines.size() - 1) {
+                hologramStringBuilder.append("\n");
+            }
+        }
+        final String initialText = hologramStringBuilder.toString();
+        
+        TextDisplay hologram = player.getWorld().spawn(hologramLoc, TextDisplay.class, (holo) -> {
+            holo.setGravity(false);
+            holo.setPersistent(false);
+            holo.setInvulnerable(true);
+            holo.setBrightness(new org.bukkit.entity.Display.Brightness(15, 15));
+            holo.setAlignment(TextDisplay.TextAlignment.CENTER);
+            holo.setBillboard(org.bukkit.entity.Display.Billboard.CENTER);
+            holo.setGlowing(true);
+            holo.setGlowColorOverride(Color.YELLOW);
+            holo.setViewRange(64.0f);
+            holo.setText(initialText);
+        });
         
         long creationTime = System.currentTimeMillis();
         DeathChestData data = new DeathChestData(
-            player.getUniqueId(), player.getName(), chest, hologram, hologramId,
+            player.getUniqueId(), player.getName(), chest, hologram,
             validItems.toArray(new ItemStack[0]), totalExp, locationStr,
             player.getWorld().getName(), blockLoc.getBlockX(), blockLoc.getBlockY(), blockLoc.getBlockZ(),
             creationTime, initialTime
@@ -220,8 +241,9 @@ public class DeathChestManager {
         }
         plugin.getLogger().info("กำลังลบ Holograms " + activeChests.size() + " อัน (ตอนปิดเซิร์ฟ)...");
         for (DeathChestData data : activeChests.values()) {
-            hologramService.delete(data.hologramEntity);
-            hologramService.deleteById(data.hologramId);
+            if (data.hologramEntity != null && data.hologramEntity.isValid()) {
+                data.hologramEntity.remove();
+            }
         }
         activeChests.clear();
         playerChestMap.clear();

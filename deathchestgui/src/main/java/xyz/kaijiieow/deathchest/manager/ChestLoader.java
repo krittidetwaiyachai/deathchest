@@ -1,15 +1,15 @@
 package xyz.kaijiieow.deathchest.manager;
 
-import de.oliver.fancyholograms.api.hologram.Hologram;
 import org.bukkit.Bukkit;
+import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Chest;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
 import xyz.kaijiieow.deathchest.database.ChestDatabase;
-import xyz.kaijiieow.deathchest.hologram.FancyHologramService;
 import xyz.kaijiieow.deathchest.model.BlockLocation;
 import xyz.kaijiieow.deathchest.model.DatabaseChestData;
 import xyz.kaijiieow.deathchest.model.DeathChestData;
@@ -27,19 +27,18 @@ public class ChestLoader {
     private final ConfigManager configManager;
     private final LoggingService logger;
     private final ChestDatabase chestDatabase;
-    private final FancyHologramService hologramService;
     private final Map<BlockLocation, DeathChestData> activeChests;
     private final Map<UUID, List<BlockLocation>> playerChestMap;
+    private final StringBuilder hologramStringBuilder = new StringBuilder();
     
     public ChestLoader(DeathChestPlugin plugin, ConfigManager configManager, LoggingService logger,
-                      ChestDatabase chestDatabase, FancyHologramService hologramService,
+                      ChestDatabase chestDatabase,
                       Map<BlockLocation, DeathChestData> activeChests,
                       Map<UUID, List<BlockLocation>> playerChestMap) {
         this.plugin = plugin;
         this.configManager = configManager;
         this.logger = logger;
         this.chestDatabase = chestDatabase;
-        this.hologramService = hologramService;
         this.activeChests = activeChests;
         this.playerChestMap = playerChestMap;
     }
@@ -106,24 +105,52 @@ public class ChestLoader {
             // Create hologram
             Location hologramLoc = blockLoc.clone().add(0.5, configManager.getHologramYOffset(), 0.5);
             String locationStr = String.format("%d, %d, %d", dbData.x, dbData.y, dbData.z);
+            int minutes = dbData.remainingSeconds / 60;
+            int seconds = dbData.remainingSeconds % 60;
+            final String timeString;
+            if (minutes > 0) {
+                timeString = minutes + " นาที " + seconds;
+            } else {
+                timeString = String.valueOf(dbData.remainingSeconds);
+            }
             
-            UUID ownerUUID = UUID.fromString(dbData.ownerUuid);
-            String hologramId = hologramService.buildHologramId(dbData.world, dbData.x, dbData.y, dbData.z, ownerUUID);
-            Hologram hologram = hologramService.createDeathChestHologram(
-                    hologramId,
-                    hologramLoc,
-                    dbData.ownerName,
-                    dbData.experience,
-                    locationStr,
-                    dbData.remainingSeconds
-            );
+            hologramStringBuilder.setLength(0);
+            List<String> lines = configManager.getHologramLines();
+            for (int i = 0; i < lines.size(); i++) {
+                String line = lines.get(i);
+                line = line.replace("&", "§")
+                        .replace("%player%", dbData.ownerName)
+                        .replace("%time%", timeString)
+                        .replace("%xp%", String.valueOf(dbData.experience))
+                        .replace("%coords%", locationStr);
+                
+                hologramStringBuilder.append(line);
+                if (i < lines.size() - 1) {
+                    hologramStringBuilder.append("\n");
+                }
+            }
+            final String hologramText = hologramStringBuilder.toString();
+            
+            TextDisplay hologram = world.spawn(hologramLoc, TextDisplay.class, (holo) -> {
+                holo.setGravity(false);
+                holo.setPersistent(false);
+                holo.setInvulnerable(true);
+                holo.setBrightness(new org.bukkit.entity.Display.Brightness(15, 15));
+                holo.setAlignment(TextDisplay.TextAlignment.CENTER);
+                holo.setBillboard(org.bukkit.entity.Display.Billboard.CENTER);
+                holo.setGlowing(true);
+                holo.setGlowColorOverride(Color.YELLOW);
+                holo.setViewRange(64.0f);
+                holo.setText(hologramText);
+            });
             
             // Create DeathChestData
             // ใช้ remainingSeconds เป็น initialDespawnTime สำหรับกล่องที่โหลดจาก database
             // (อาจจะไม่ถูกต้อง 100% แต่ก็พอใช้ได้สำหรับการคำนวณ protection)
             int estimatedInitialTime = dbData.remainingSeconds;
+            UUID ownerUUID = UUID.fromString(dbData.ownerUuid);
             DeathChestData data = new DeathChestData(
-                ownerUUID, dbData.ownerName, chest, hologram, hologramId,
+                ownerUUID, dbData.ownerName, chest, hologram,
                 items, dbData.experience, locationStr,
                 dbData.world, dbData.x, dbData.y, dbData.z,
                 dbData.createdAt, estimatedInitialTime
