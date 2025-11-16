@@ -70,17 +70,22 @@ public class ChestRemover {
             if (data == null) return;
         }
 
-        // --- START CORRECTION ---
-        if (data.hologramId != null) {
-            logger.log(LoggingService.LogLevel.WARN, "กำลังพยายามลบโฮโลแกรมด้วย ID: " + data.hologramId);
+        // --- START FINAL FIX ---
+        // เราต้องใช้ "Object สด" (hologramEntity) ที่เก็บไว้เท่านั้น
+        // การใช้ "ID" (hologramId) เพื่อไป get object ใหม่มาลบ มันไม่เวิร์ค (บั๊ก FancyHolograms)
+        // ปลั๊กอิน Airdrop ของนายก็ใช้วิธีเก็บ Object สดไว้ลบเหมือนกัน
+        
+        if (data.hologramEntity != null) {
+            logger.log(LoggingService.LogLevel.INFO, "กำลังพยายามลบโฮโลแกรมด้วย 'hologramEntity' (Object สด)");
+            hologramService.delete(data.hologramEntity); // <--- นี่คือวิธีที่ถูกต้อง
+        } else if (data.hologramId != null) {
+            // นี่คือ Fallback เผื่อว่า data.hologramEntity มันดัน null (ซึ่งไม่ควรเกิด)
+            logger.log(LoggingService.LogLevel.WARN, "hologramEntity เป็น null, พยายามลบด้วย 'hologramId' แทน (ซึ่งอาจจะไม่เวิร์ค): " + data.hologramId);
             hologramService.deleteById(data.hologramId);
-        } else if (data.hologramEntity != null) {
-            logger.log(LoggingService.LogLevel.WARN, "Hologram ID เป็น null, พยายามลบด้วย Entity แทน...");
-            hologramService.delete(data.hologramEntity);
         } else {
             logger.log(LoggingService.LogLevel.ERROR, "ลบโฮโลแกรมไม่ได้เลย เพราะทั้ง ID และ Entity เป็น null");
         }
-        // --- END CORRECTION ---
+        // --- END FINAL FIX ---
 
         data.hologramEntity = null;
         data.hologramId = null;

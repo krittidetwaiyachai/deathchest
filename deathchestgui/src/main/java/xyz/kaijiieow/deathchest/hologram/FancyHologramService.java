@@ -45,7 +45,6 @@ public class FancyHologramService {
 
         // ป้องกันไม่ให้สร้างโฮโลแกรมซ้ำชื่อเดิมค้างอยู่
         // เราจะ 'ปิด' การ log error ตรงนี้ เพราะมันน่ารำคาญ
-        // deleteById(hologramId);
         hologramManager.getHologram(hologramId).ifPresent(this::deleteQuietly); // <--- แก้ไขไม่ให้ log error ตอนสร้าง
 
         Hologram hologram = hologramManager.create(data);
@@ -66,27 +65,23 @@ public class FancyHologramService {
         hologram.forceUpdate();
     }
 
-    // --- START CORRECTION (รอบ 3) ---
-
     // เมธอดลบแบบส่งเสียงดัง (สำหรับ ChestRemover)
     public void delete(Hologram hologram) {
         if (hologram == null) {
             return;
         }
         
-        // สลับลำดับการลบ
-        // ลองเรียก deleteHologram() ก่อน
+        // สลับลำดับการลบ (เหมือนที่เราทำรอบที่แล้ว)
         try {
-            hologram.deleteHologram(); // [Line 82]
+            hologram.deleteHologram();
         } catch (Exception e) {
-            logger.log(LoggingService.LogLevel.ERROR, "ลบ Hologram (delete) ไม่สำเร็จ: " + e.getMessage()); // [Line 85]
+            logger.log(LoggingService.LogLevel.ERROR, "ลบ Hologram (delete) ไม่สำเร็จ: " + e.getMessage());
         }
         
-        // แล้วค่อยเรียก removeHologram()
         try {
-            hologramManager.removeHologram(hologram); // [Line 78]
+            hologramManager.removeHologram(hologram);
         } catch (Exception e) {
-            logger.log(LoggingService.LogLevel.ERROR, "ลบ Hologram (remove) ไม่สำเร็จ: " + e.getMessage()); // [Line 80]
+            logger.log(LoggingService.LogLevel.ERROR, "ลบ Hologram (remove) ไม่สำเร็จ: " + e.getMessage());
         }
     }
 
@@ -105,7 +100,7 @@ public class FancyHologramService {
         }
     }
 
-    // เมธอด deleteById (สำหรับ ChestRemover)
+    // เมธอด deleteById (สำหรับ Fallback ใน ChestRemover)
     public void deleteById(String hologramId) {
         if (hologramId == null) {
             logger.log(LoggingService.LogLevel.WARN, "พยายามลบโฮโลแกรม แต่ hologramId เป็น null");
@@ -121,8 +116,6 @@ public class FancyHologramService {
             logger.log(LoggingService.LogLevel.ERROR, "ไม่เจอโฮโลแกรมด้วย ID: " + hologramId + " - การลบจึงล้มเหลว (ปลั๊กอิน FancyHolograms หาไม่เจอ)");
         }
     }
-    
-    // --- END CORRECTION (รอบ 3) ---
 
     public boolean isValid(Hologram hologram) {
         if (hologram == null) {
