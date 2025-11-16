@@ -6,6 +6,7 @@ import xyz.kaijiieow.deathchest.command.BuybackCommand;
 import xyz.kaijiieow.deathchest.command.TeleportChestCommand;
 import xyz.kaijiieow.deathchest.database.DatabaseManager;
 import xyz.kaijiieow.deathchest.gui.GuiManager;
+import xyz.kaijiieow.deathchest.hologram.FancyHologramService;
 import xyz.kaijiieow.deathchest.listener.ChestInteractListener;
 import xyz.kaijiieow.deathchest.listener.ChestProtectionListener;
 import xyz.kaijiieow.deathchest.listener.DeathListener;
@@ -28,6 +29,7 @@ public class DeathChestPlugin extends JavaPlugin {
     private GuiManager guiManager;
     private LoggingService loggingService;
     private DatabaseManager databaseManager;
+    private FancyHologramService hologramService;
 
     @Override
     public void onEnable() {
@@ -55,7 +57,14 @@ public class DeathChestPlugin extends JavaPlugin {
         }
 
         this.storageManager = new StorageManager(databaseManager, loggingService);
-        this.deathChestManager = new DeathChestManager(this, configManager, storageManager, loggingService, databaseManager, hookManager);
+        try {
+            this.hologramService = new FancyHologramService(configManager, loggingService);
+        } catch (IllegalStateException ex) {
+            loggingService.log(LoggingService.LogLevel.ERROR, "!!! ไม่สามารถเชื่อมต่อกับ FancyHolograms ได้ ปลั๊กอินจะปิดตัวลง !!!");
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
+        this.deathChestManager = new DeathChestManager(this, configManager, storageManager, loggingService, databaseManager, hookManager, hologramService);
         this.guiManager = new GuiManager(this, configManager, hookManager, storageManager, loggingService);
         
         this.storageManager.loadBuybackItemsFromDatabase();
@@ -127,5 +136,6 @@ public class DeathChestPlugin extends JavaPlugin {
     public GuiManager getGuiManager() { return guiManager; }
     public LoggingService getLoggingService() { return loggingService; }
     public DatabaseManager getDatabaseManager() { return databaseManager; }
+    public FancyHologramService getHologramService() { return hologramService; }
 }
 

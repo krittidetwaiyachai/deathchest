@@ -6,13 +6,14 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
-import xyz.kaijiieow.deathchest.model.BlockLocation;
-import xyz.kaijiieow.deathchest.manager.ConfigManager;
+import xyz.kaijiieow.deathchest.hologram.FancyHologramService;
 import xyz.kaijiieow.deathchest.database.ChestDatabase;
+import xyz.kaijiieow.deathchest.manager.ConfigManager;
+import xyz.kaijiieow.deathchest.manager.StorageManager;
+import xyz.kaijiieow.deathchest.model.BlockLocation;
 import xyz.kaijiieow.deathchest.model.DeathChestData;
 import xyz.kaijiieow.deathchest.plugin.DeathChestPlugin;
 import xyz.kaijiieow.deathchest.util.LoggingService;
-import xyz.kaijiieow.deathchest.manager.StorageManager;
 
 import java.util.List;
 import java.util.Map;
@@ -25,11 +26,13 @@ public class ChestRemover {
     private final LoggingService logger;
     private final ChestDatabase chestDatabase;
     private final StorageManager storageManager;
+    private final FancyHologramService hologramService;
     private final Map<BlockLocation, DeathChestData> activeChests;
     private final Map<UUID, List<BlockLocation>> playerChestMap;
     
     public ChestRemover(DeathChestPlugin plugin, ConfigManager configManager, LoggingService logger,
                        ChestDatabase chestDatabase, StorageManager storageManager,
+                       FancyHologramService hologramService,
                        Map<BlockLocation, DeathChestData> activeChests,
                        Map<UUID, List<BlockLocation>> playerChestMap) {
         this.plugin = plugin;
@@ -37,6 +40,7 @@ public class ChestRemover {
         this.logger = logger;
         this.chestDatabase = chestDatabase;
         this.storageManager = storageManager;
+        this.hologramService = hologramService;
         this.activeChests = activeChests;
         this.playerChestMap = playerChestMap;
     }
@@ -65,9 +69,10 @@ public class ChestRemover {
             data = activeChests.get(key);
             if (data == null) return;
         }
-        if (data.hologramEntity != null && data.hologramEntity.isValid()) {
-            data.hologramEntity.remove();
-        }
+        hologramService.delete(data.hologramEntity);
+        hologramService.deleteById(data.hologramId);
+        data.hologramEntity = null;
+        data.hologramId = null;
         World world = Bukkit.getWorld(key.worldName());
         if (world != null) {
             Location loc = new Location(world, key.x(), key.y(), key.z());

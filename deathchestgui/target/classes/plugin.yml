@@ -1,8 +1,9 @@
-name: DeathChestGUI
-version: 1.0
+name: KJDeathChestGUI
+version: 1.0.0
 main: xyz.kaijiieow.deathchest.plugin.DeathChestPlugin
 api-version: 1.21
-depend: [CoinsEngine, Vault]
+author: Kaijiieow
+depend: [CoinsEngine, Vault, FancyHolograms]
 commands:
   buyback:
     description: เปิด GUI เพื่อซื้อของที่หายคืน

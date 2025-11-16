@@ -7,6 +7,7 @@ d:\plugin\DeathChest\deathchestgui\src\main\java\xyz\kaijiieow\deathchest\databa
 d:\plugin\DeathChest\deathchestgui\src\main\java\xyz\kaijiieow\deathchest\gui\AdminGuiHandler.java
 d:\plugin\DeathChest\deathchestgui\src\main\java\xyz\kaijiieow\deathchest\gui\BuybackGuiHandler.java
 d:\plugin\DeathChest\deathchestgui\src\main\java\xyz\kaijiieow\deathchest\gui\GuiManager.java
+d:\plugin\DeathChest\deathchestgui\src\main\java\xyz\kaijiieow\deathchest\hologram\FancyHologramService.java
 d:\plugin\DeathChest\deathchestgui\src\main\java\xyz\kaijiieow\deathchest\listener\ChestInteractListener.java
 d:\plugin\DeathChest\deathchestgui\src\main\java\xyz\kaijiieow\deathchest\listener\ChestProtectionListener.java
 d:\plugin\DeathChest\deathchestgui\src\main\java\xyz\kaijiieow\deathchest\listener\DeathListener.java

@@ -1,7 +1,7 @@
 package xyz.kaijiieow.deathchest.model;
 
+import de.oliver.fancyholograms.api.hologram.Hologram;
 import org.bukkit.block.Chest;
-import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.UUID;
@@ -10,7 +10,8 @@ public class DeathChestData {
     public UUID ownerUUID;
     public String ownerName;
     public Chest chest;
-    public TextDisplay hologramEntity;
+    public Hologram hologramEntity;
+    public String hologramId;
     public ItemStack[] items;
     public int experience;
     public String locationString;
@@ -20,11 +21,14 @@ public class DeathChestData {
     public int x, y, z;
     public long createdAt;
 
-    public DeathChestData(UUID ownerUUID, String ownerName, Chest chest, TextDisplay hologramEntity, ItemStack[] items, int experience, String locationString, String worldName, int x, int y, int z, long createdAt, int initialDespawnTime) {
+    public DeathChestData(UUID ownerUUID, String ownerName, Chest chest, Hologram hologramEntity, String hologramId,
+                          ItemStack[] items, int experience, String locationString, String worldName,
+                          int x, int y, int z, long createdAt, int initialDespawnTime) {
         this.ownerUUID = ownerUUID;
         this.ownerName = ownerName;
         this.chest = chest;
         this.hologramEntity = hologramEntity;
+        this.hologramId = hologramId;
         this.items = items;
         this.experience = experience;
         this.locationString = locationString;

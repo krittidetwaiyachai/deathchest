@@ -4,6 +4,7 @@ xyz\kaijiieow\deathchest\manager\ChestLoader$1.class
 xyz\kaijiieow\deathchest\util\SerializationUtils.class
 xyz\kaijiieow\deathchest\manager\ChestTimer.class
 xyz\kaijiieow\deathchest\plugin\DeathChestPlugin$1.class
+xyz\kaijiieow\deathchest\hologram\FancyHologramService.class
 xyz\kaijiieow\deathchest\manager\ConfigManager.class
 xyz\kaijiieow\deathchest\database\DatabaseManager.class
 xyz\kaijiieow\deathchest\listener\ChestProtectionListener.class
