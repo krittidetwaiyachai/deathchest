@@ -58,29 +58,36 @@ public class ChestTimer {
                     BlockLocation key = entry.getKey();
                     DeathChestData data = entry.getValue();
 
-                    // --- 1. ตรวจสอบและนับเวลา (ทำงานตลอด) ---
-                    if (data.timeLeft <= 0) {
-                        chestsToRemove.add(key);
-                        continue; // กล่องนี้หมดเวลา, ไปอันต่อไป
-                    }
-                    
-                    data.timeLeft--; // นับเวลาถอยหลัง 1 วินาที (ทำงานตลอด)
-
-                    // --- 2. ตรวจสอบ Chunk ก่อนทำสิ่งที่ต้องโหลด ---
+                    // --- 1. ตรวจสอบโลกและ Chunk ---
                     World world = Bukkit.getWorld(key.worldName());
-                    if (world == null) {
-                        // โลกไม่โหลด ข้ามไป (เวลานับไปแล้ว)
+                    Location chestLoc = null;
+                    boolean isChunkLoaded = false;
+
+                    if (world != null) {
+                        chestLoc = new Location(world, key.x(), key.y(), key.z());
+                        isChunkLoaded = world.isChunkLoaded(chestLoc.getChunk());
+                    }
+
+                    // --- 2. ตรวจสอบการหมดเวลา (ทำงานก่อนนับเวลา) ---
+                    if (data.timeLeft <= 0) {
+                        if (isChunkLoaded) {
+                            // หมดเวลา และ Chunk โหลดอยู่ = ลบได้
+                            chestsToRemove.add(key);
+                        }
+                        // ถ้า timeLeft <= 0 แต่ Chunk ไม่โหลด (isChunkLoaded=false)
+                        // มันจะข้ามไป, ไม่ลบ, ไม่นับ, รอเช็ครอบหน้า
                         continue;
                     }
                     
-                    Location chestLoc = new Location(world, key.x(), key.y(), key.z());
-                    if (!world.isChunkLoaded(chestLoc.getChunk())) {
-                        // Chunk ไม่โหลด ข้ามไป (เวลานับไปแล้ว)
-                        // ไม่ต้องพยายามทำอะไรกับ Hologram/Particle
+                    // --- 3. นับเวลาถอยหลัง (ถ้ายังไม่หมดเวลา) ---
+                    data.timeLeft--; // นับเวลาถอยหลัง 1 วินาที (ทำงานตลอด)
+
+                    // --- 4. ถ้า Chunk ไม่โหลด = ข้ามการแสดงผล ---
+                    if (!isChunkLoaded) {
                         continue; 
                     }
 
-                    // --- 3. (ถ้ามาถึงนี่ = Chunk โหลดอยู่) ตรวจสอบ/สร้าง Hologram ---
+                    // --- 5. (ถ้ามาถึงนี่ = Chunk โหลดอยู่) ตรวจสอบ/สร้าง Hologram ---
                     if (data.hologramEntity == null || !data.hologramEntity.isValid()) {
                         // (Chunk โหลดอยู่ แต่ Hologram หาย (อาจจะโดน /kill) -> สร้างใหม่)
                         logger.log(LoggingService.LogLevel.WARN, "โฮโลแกรมของ " + data.ownerName + " หาย! (Chunk โหลดอยู่) พยายามสร้างใหม่...");
@@ -115,7 +122,7 @@ public class ChestTimer {
 
                             TextDisplay newHologram = world.spawn(hologramLoc, TextDisplay.class, (holo) -> {
                                 holo.setGravity(false);
-                                holo.setPersistent(true); // <--- *** นี่คือจุดที่แก้ ***
+                                holo.setPersistent(true); 
                                 holo.setInvulnerable(true);
                                 holo.setBrightness(new org.bukkit.entity.Display.Brightness(15, 15));
                                 holo.setAlignment(TextDisplay.TextAlignment.CENTER);
@@ -133,7 +140,7 @@ public class ChestTimer {
                         }
                     }
 
-                    // --- 4. (ถ้า Chunk โหลดอยู่) สร้าง Particle ---
+                    // --- 6. (ถ้า Chunk โหลดอยู่) สร้าง Particle ---
                     if (showParticles) {
                         try {
                             Location center = new Location(world, key.x() + 0.5, key.y() + 0.5, key.z() + 0.5);
@@ -146,7 +153,7 @@ public class ChestTimer {
                         }
                     }
 
-                    // --- 5. (ถ้า Chunk โหลดอยู่) อัปเดตข้อความ Hologram ---
+                    // --- 7. (ถ้า Chunk โหลดอยู่) อัปเดตข้อความ Hologram ---
                     int minutes = data.timeLeft / 60;
                     int seconds = data.timeLeft % 60;
 
@@ -178,7 +185,7 @@ public class ChestTimer {
                     }
                 }
 
-                // --- 6. ลบกล่องที่หมดเวลา (นอกลูปหลัก) ---
+                // --- 8. ลบกล่องที่หมดเวลา (นอกลูปหลัก) ---
                 for (BlockLocation keyToRemove : chestsToRemove) {
                     DeathChestData dataToRemove = activeChests.get(keyToRemove);
                     if (dataToRemove != null) {
