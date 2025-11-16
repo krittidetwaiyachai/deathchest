@@ -133,7 +133,7 @@ public class ChestLoader {
             
             TextDisplay hologram = world.spawn(hologramLoc, TextDisplay.class, (holo) -> {
                 holo.setGravity(false);
-                holo.setPersistent(false);
+                holo.setPersistent(true); // <--- *** นี่คือจุดที่แก้ ***
                 holo.setInvulnerable(true);
                 holo.setBrightness(new org.bukkit.entity.Display.Brightness(15, 15));
                 holo.setAlignment(TextDisplay.TextAlignment.CENTER);
@@ -169,4 +169,3 @@ public class ChestLoader {
         }
     }
 }
-

@@ -58,84 +58,95 @@ public class ChestTimer {
                     BlockLocation key = entry.getKey();
                     DeathChestData data = entry.getValue();
 
-                    if (data.hologramEntity == null || !data.hologramEntity.isValid()) {
-                        logger.log(LoggingService.LogLevel.WARN, "โฮโลแกรมของ " + data.ownerName + " หาย! พยายามสร้างใหม่...");
-                        try {
-                            World world = Bukkit.getWorld(key.worldName());
-                            if (world != null) {
-                                Location hologramLoc = new Location(world, key.x() + 0.5, key.y() + configManager.getHologramYOffset(), key.z() + 0.5);
-
-                                int minutes = data.timeLeft / 60;
-                                int seconds = data.timeLeft % 60;
-                                final String timeString;
-                                if (minutes > 0) {
-                                    timeString = minutes + " นาที " + seconds;
-                                } else {
-                                    timeString = String.valueOf(data.timeLeft);
-                                }
-
-                                hologramStringBuilder.setLength(0);
-                                List<String> lines = configManager.getHologramLines();
-                                for (int i = 0; i < lines.size(); i++) {
-                                    String line = lines.get(i);
-                                    line = line.replace("&", "§")
-                                            .replace("%player%", data.ownerName)
-                                            .replace("%time%", timeString)
-                                            .replace("%xp%", String.valueOf(data.experience))
-                                            .replace("%coords%", data.locationString);
-
-                                    hologramStringBuilder.append(line);
-                                    if (i < lines.size() - 1) {
-                                        hologramStringBuilder.append("\n");
-                                    }
-                                }
-                                final String newText = hologramStringBuilder.toString();
-
-                                TextDisplay newHologram = world.spawn(hologramLoc, TextDisplay.class, (holo) -> {
-                                    holo.setGravity(false);
-                                    holo.setPersistent(false);
-                                    holo.setInvulnerable(true);
-                                    holo.setBrightness(new org.bukkit.entity.Display.Brightness(15, 15));
-                                    holo.setAlignment(TextDisplay.TextAlignment.CENTER);
-                                    holo.setBillboard(org.bukkit.entity.Display.Billboard.CENTER);
-                                    holo.setGlowing(true);
-                                    holo.setGlowColorOverride(Color.YELLOW);
-                                    holo.setViewRange(64.0f);
-                                    holo.setText(newText);
-                                });
-
-                                data.hologramEntity = newHologram;
-                            } else {
-                                chestsToRemove.add(key);
-                                continue;
-                            }
-                        } catch (Exception e) {
-                            logger.log(LoggingService.LogLevel.ERROR, "ไม่สามารถสร้างโฮโลแกรมใหม่ให้กับ " + data.ownerName + " ได้: " + e.getMessage());
-                            chestsToRemove.add(key);
-                            continue;
-                        }
-                    }
-
+                    // --- 1. ตรวจสอบและนับเวลา (ทำงานตลอด) ---
                     if (data.timeLeft <= 0) {
                         chestsToRemove.add(key);
+                        continue; // กล่องนี้หมดเวลา, ไปอันต่อไป
+                    }
+                    
+                    data.timeLeft--; // นับเวลาถอยหลัง 1 วินาที (ทำงานตลอด)
+
+                    // --- 2. ตรวจสอบ Chunk ก่อนทำสิ่งที่ต้องโหลด ---
+                    World world = Bukkit.getWorld(key.worldName());
+                    if (world == null) {
+                        // โลกไม่โหลด ข้ามไป (เวลานับไปแล้ว)
                         continue;
                     }
+                    
+                    Location chestLoc = new Location(world, key.x(), key.y(), key.z());
+                    if (!world.isChunkLoaded(chestLoc.getChunk())) {
+                        // Chunk ไม่โหลด ข้ามไป (เวลานับไปแล้ว)
+                        // ไม่ต้องพยายามทำอะไรกับ Hologram/Particle
+                        continue; 
+                    }
 
-                    if (showParticles) {
+                    // --- 3. (ถ้ามาถึงนี่ = Chunk โหลดอยู่) ตรวจสอบ/สร้าง Hologram ---
+                    if (data.hologramEntity == null || !data.hologramEntity.isValid()) {
+                        // (Chunk โหลดอยู่ แต่ Hologram หาย (อาจจะโดน /kill) -> สร้างใหม่)
+                        logger.log(LoggingService.LogLevel.WARN, "โฮโลแกรมของ " + data.ownerName + " หาย! (Chunk โหลดอยู่) พยายามสร้างใหม่...");
                         try {
-                            World world = Bukkit.getWorld(key.worldName());
-                            if (world != null) {
-                                Location center = new Location(world, key.x() + 0.5, key.y() + 0.5, key.z() + 0.5);
-                                world.spawnParticle(particleSoulFireFlame, center, 5, 0.5, 0.5, 0.5, 0.02);
-                                world.spawnParticle(Particle.TOTEM, center.clone().add(0, 0.5, 0), 1, 0.3, 0.5, 0.3, 0.1);
-                                world.spawnParticle(particleElectricSpark, center, 2, 0.5, 0.5, 0.5, 0.05);
-                                world.spawnParticle(particleSculkSoul, center, 1, 0.5, 0.5, 0.5, 0.02);
+                            Location hologramLoc = new Location(world, key.x() + 0.5, key.y() + configManager.getHologramYOffset(), key.z() + 0.5);
+
+                            int minutes = data.timeLeft / 60;
+                            int seconds = data.timeLeft % 60;
+                            final String timeString;
+                            if (minutes > 0) {
+                                timeString = minutes + " นาที " + seconds;
+                            } else {
+                                timeString = String.valueOf(data.timeLeft);
                             }
+
+                            hologramStringBuilder.setLength(0);
+                            List<String> lines = configManager.getHologramLines();
+                            for (int i = 0; i < lines.size(); i++) {
+                                String line = lines.get(i);
+                                line = line.replace("&", "§")
+                                        .replace("%player%", data.ownerName)
+                                        .replace("%time%", timeString)
+                                        .replace("%xp%", String.valueOf(data.experience))
+                                        .replace("%coords%", data.locationString);
+
+                                hologramStringBuilder.append(line);
+                                if (i < lines.size() - 1) {
+                                    hologramStringBuilder.append("\n");
+                                }
+                            }
+                            final String newText = hologramStringBuilder.toString();
+
+                            TextDisplay newHologram = world.spawn(hologramLoc, TextDisplay.class, (holo) -> {
+                                holo.setGravity(false);
+                                holo.setPersistent(true); // <--- *** นี่คือจุดที่แก้ ***
+                                holo.setInvulnerable(true);
+                                holo.setBrightness(new org.bukkit.entity.Display.Brightness(15, 15));
+                                holo.setAlignment(TextDisplay.TextAlignment.CENTER);
+                                holo.setBillboard(org.bukkit.entity.Display.Billboard.CENTER);
+                                holo.setGlowing(true);
+                                holo.setGlowColorOverride(Color.YELLOW);
+                                holo.setViewRange(64.0f);
+                                holo.setText(newText);
+                            });
+
+                            data.hologramEntity = newHologram;
+                            
                         } catch (Exception e) {
-                            logger.log(LoggingService.LogLevel.WARN, "เกิดข้อผิดพลาดตอนสร้าง Particle: " + e.getMessage());
+                            logger.log(LoggingService.LogLevel.ERROR, "ไม่สามารถสร้างโฮโลแกรมใหม่ให้กับ " + data.ownerName + " ได้: " + e.getMessage());
                         }
                     }
 
+                    // --- 4. (ถ้า Chunk โหลดอยู่) สร้าง Particle ---
+                    if (showParticles) {
+                        try {
+                            Location center = new Location(world, key.x() + 0.5, key.y() + 0.5, key.z() + 0.5);
+                            world.spawnParticle(particleSoulFireFlame, center, 5, 0.5, 0.5, 0.5, 0.02);
+                            world.spawnParticle(Particle.TOTEM, center.clone().add(0, 0.5, 0), 1, 0.3, 0.5, 0.3, 0.1);
+                            world.spawnParticle(particleElectricSpark, center, 2, 0.5, 0.5, 0.5, 0.05);
+                            world.spawnParticle(particleSculkSoul, center, 1, 0.5, 0.5, 0.5, 0.02);
+                        } catch (Exception e) {
+                             // ไม่ต้อง spam log ถ้า particle เฟล
+                        }
+                    }
+
+                    // --- 5. (ถ้า Chunk โหลดอยู่) อัปเดตข้อความ Hologram ---
                     int minutes = data.timeLeft / 60;
                     int seconds = data.timeLeft % 60;
 
@@ -165,10 +176,9 @@ public class ChestTimer {
                     if (data.hologramEntity != null && data.hologramEntity.isValid()) {
                         data.hologramEntity.setText(hologramStringBuilder.toString());
                     }
-
-                    data.timeLeft--;
                 }
 
+                // --- 6. ลบกล่องที่หมดเวลา (นอกลูปหลัก) ---
                 for (BlockLocation keyToRemove : chestsToRemove) {
                     DeathChestData dataToRemove = activeChests.get(keyToRemove);
                     if (dataToRemove != null) {
@@ -179,4 +189,3 @@ public class ChestTimer {
         }.runTaskTimer(plugin, 20L, 20L);
     }
 }
-
